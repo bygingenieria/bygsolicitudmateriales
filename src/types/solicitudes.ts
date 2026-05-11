@@ -43,6 +43,7 @@ export interface DetalleResponseDto {
 
 export interface SolicitudDetalle extends SolicitudResumen {
   items: DetalleResponseDto[];
+  observaciones?: string; // ✅ Añadido para mostrar justificación
 }
 
 export interface UpdateEstadoDto {
