@@ -13,33 +13,28 @@ export const solicitudesService = {
     return data;
   },
 
-  // ✅ NUEVO: Panel para el Solicitante (ver sus propios pedidos)
+  // ✅ CORREGIDO: Ruta exacta al endpoint del backend
   getMine: async (): Promise<SolicitudResumen[]> => {
-    const { data } = await api.get<SolicitudResumen[]>("/solicitudes/mis-solicitudes");
-    return data;
-  },
-
-  getEspeciales: async (): Promise<SolicitudResumen[]> => {
-    const { data } = await api.get<SolicitudResumen[]>("/solicitudes/bodega/especiales");
+    const { data } = await api.get<SolicitudResumen[]>("/Solicitudes/mis-solicitudes");
     return data;
   },
 
   getById: async (id: number): Promise<SolicitudDetalle> => {
-    const { data } = await api.get<SolicitudDetalle>(`/solicitudes/${id}`);
+    const { data } = await api.get<SolicitudDetalle>(`/Solicitudes/${id}`);
     return data;
   },
 
   updateEstado: async (id: number, estado: string): Promise<void> => {
     const payload: UpdateEstadoDto = { nuevoEstado: estado };
-    await api.patch(`/solicitudes/${id}/estado`, payload);
+    await api.patch(`/Solicitudes/${id}/estado`, payload);
   },
 
   create: async (payload: CreateSolicitudDto) => {
-    const { data } = await api.post("/solicitudes", payload);
+    const { data } = await api.post("/Solicitudes", payload);
     return data;
   },
 
   delete: async (id: number): Promise<void> => {
-    await api.delete(`/solicitudes/${id}`);
+    await api.delete(`/Solicitudes/${id}`);
   },
 };
