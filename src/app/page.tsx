@@ -222,7 +222,7 @@ export default function HomePage() {
             </h1>
 
             <p className="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200 text-lg md:text-xl text-slate-200 max-w-[700px] leading-relaxed">
-              Gestión centralizada en la solicitud de productosAAAAAA. Solicita
+              Gestión centralizada en la solicitud de productos. Solicita
               insumos y revisa el estado de tus pedidos en tiempo real.
             </p>
 

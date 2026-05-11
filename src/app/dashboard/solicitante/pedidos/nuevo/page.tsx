@@ -185,10 +185,7 @@ export default function NuevaSolicitudPage() {
 
     const tipoPedido = carrito[0].tipoItem;
     
-    if (tipoPedido !== "NORMAL" && !observacionesGral.trim()) {
-        return toast.error("Para pedidos especiales debes ingresar una Justificación Adicional.");
-    }
-
+    // ✅ CAMBIO: Ya no es obligatorio ingresar una justificación para pedidos especiales
     setEnviando(true);
     try {
       const detallesSolicitud = carrito.map(item => ({
@@ -203,7 +200,7 @@ export default function NuevaSolicitudPage() {
 
       await solicitudesService.create({
         proyecto,
-        observaciones: observacionesGral,
+        observaciones: observacionesGral, // Se envía lo que haya (incluso vacío)
         tipoPedido, 
         detalles: detallesSolicitud,
       });
@@ -444,7 +441,8 @@ export default function NuevaSolicitudPage() {
                     
                     {requiereJustificacion && (
                       <div className="space-y-2 mt-4 animate-in fade-in zoom-in duration-300">
-                        <Label className="text-xs font-bold text-orange-600 uppercase tracking-wider">Justificación Pedido Especial *</Label>
+                        {/* ✅ CAMBIO: Etiqueta actualizada a (Opcional) */}
+                        <Label className="text-xs font-bold text-orange-600 uppercase tracking-wider">Justificación Pedido Especial (Opcional)</Label>
                         <textarea placeholder="Explica por qué solicitas estos materiales..." value={observacionesGral} onChange={(e) => setObservacionesGral(e.target.value)} className="w-full min-h-[80px] text-sm border border-orange-200 bg-orange-50 focus:outline-none focus:ring-2 focus:ring-orange-500 rounded-md p-3 transition-all" />
                       </div>
                     )}
