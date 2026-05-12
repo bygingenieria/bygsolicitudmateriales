@@ -77,29 +77,35 @@ export default function InventarioPage() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedProductos = productosFiltrados.slice(startIndex, startIndex + itemsPerPage);
 
-  // --- LÓGICA DE AUTOGENERACIÓN DE CÓDIGO ---
+  // --- LÓGICA DE AUTOGENERACIÓN DE CÓDIGO (VERSIÓN MEJORADA) ---
   const generateNextCode = (productosList: Producto[]): string => {
-    if (productosList.length === 0) return "artof 1";
+    if (productosList.length === 0) return "ARTOF-001";
     
-    // Obtenemos el último producto creado (asumiendo que el ID más alto es el último)
-    const lastProduct = [...productosList].sort((a, b) => b.id - a.id)[0];
-    const lastCode = lastProduct.codigoProducto.trim();
-    
-    // Buscamos separar el texto del número final (ej: "artof 50" -> ["artof 50", "artof ", "50"])
-    const match = lastCode.match(/^(.+?)(\d+)$/);
-    
-    if (match) {
-      const prefix = match[1]; // Ej: "artof " o "ARTOF-"
-      const numberStr = match[2]; // Ej: "50" o "050"
-      const nextNumber = parseInt(numberStr, 10) + 1;
-      
-      // Mantiene los ceros a la izquierda si el usuario los usa (Ej: 001 -> 002)
-      const paddedNumber = nextNumber.toString().padStart(numberStr.length, "0");
-      return `${prefix}${paddedNumber}`;
-    }
-    
-    // Si el último código no terminaba en número, simplemente le agregamos un "-1"
-    return `${lastCode}-1`;
+    let maxNumber = 0;
+    let bestPrefix = "ARTOF-";
+    let paddingLength = 3;
+
+    // Escaneamos TODOS los productos para encontrar el número absoluto más alto
+    productosList.forEach(p => {
+      const match = p.codigoProducto.trim().match(/^(.+?)(\d+)$/);
+      if (match) {
+        const currentNum = parseInt(match[2], 10);
+        if (currentNum > maxNumber) {
+          maxNumber = currentNum;
+          bestPrefix = match[1]; // Guardamos el prefijo (ej: "ARTOF-" o "artof ")
+          paddingLength = match[2].length; // Guardamos cuántos ceros tenía (ej: 4 para "0003")
+        }
+      }
+    });
+
+    // Si nadie tenía números, empezamos desde el 1
+    if (maxNumber === 0) return "ARTOF-001";
+
+    // Le sumamos 1 al NÚMERO MÁS ALTO de todo el catálogo
+    const nextNumber = maxNumber + 1;
+    const paddedNumber = nextNumber.toString().padStart(paddingLength, "0");
+
+    return `${bestPrefix}${paddedNumber}`;
   };
 
   const handleOpenDialog = (producto: Producto | null = null) => {
@@ -251,7 +257,6 @@ export default function InventarioPage() {
                       <TableHead className="pl-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Código</TableHead>
                       <TableHead className="uppercase text-[10px] font-bold tracking-wider text-slate-500">Material</TableHead>
                       <TableHead className="text-center uppercase text-[10px] font-bold tracking-wider text-slate-500 w-56">Stock Físico</TableHead>
-                      <TableHead className="uppercase text-[10px] font-bold tracking-wider text-slate-500">Ubicación</TableHead>
                       <TableHead className="text-right pr-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -262,59 +267,58 @@ export default function InventarioPage() {
                         
                         <TableCell>
                           <p className="font-extrabold text-slate-800 text-base">{p.nombreProducto}</p>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5">
+                            {p.ubicacion ? `Ubicación: ${p.ubicacion}` : "Sin ubicación asignada"}
+                          </p>
                         </TableCell>
 
                         {/* COLUMNA STOCK INTERACTIVA */}
                         <TableCell>
-                          <div className="flex items-center justify-center gap-3">
-                            <Button 
-                              size="icon" 
-                              variant="outline" 
-                              className="h-8 w-8 text-[#D32F2F] border-red-200 hover:bg-red-50 flex-shrink-0" 
-                              onClick={() => {
-                                const newVal = Math.max(0, p.cantidad - 1);
-                                handleLocalStockChange(p.id, newVal);
-                                handleSyncStock(p.id, newVal);
-                              }}
-                            >
-                              -
-                            </Button>
-                            
-                            <Input
-                              type="number"
-                              min="0"
-                              className={`w-20 h-9 text-center font-black text-lg p-0 focus-visible:ring-2 focus-visible:ring-[#D32F2F] border-slate-200 bg-white ${p.cantidad < 5 ? "text-red-600" : "text-green-700"}`}
-                              value={p.cantidad === 0 ? "" : p.cantidad}
-                              placeholder="0"
-                              onChange={(e) => {
-                                const val = e.target.value === "" ? 0 : parseInt(e.target.value);
-                                handleLocalStockChange(p.id, val);
-                              }}
-                              onBlur={() => handleSyncStock(p.id, p.cantidad)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") handleSyncStock(p.id, p.cantidad);
-                              }}
-                            />
+                          <div className="flex flex-col items-center justify-center">
+                            <div className="flex items-center justify-center gap-3">
+                              <Button 
+                                size="icon" 
+                                variant="outline" 
+                                className="h-8 w-8 text-[#D32F2F] border-red-200 hover:bg-red-50 flex-shrink-0" 
+                                onClick={() => {
+                                  const newVal = Math.max(0, p.cantidad - 1);
+                                  handleLocalStockChange(p.id, newVal);
+                                  handleSyncStock(p.id, newVal);
+                                }}
+                              >
+                                -
+                              </Button>
+                              
+                              <Input
+                                type="number"
+                                min="0"
+                                className={`w-20 h-9 text-center font-black text-lg p-0 focus-visible:ring-2 focus-visible:ring-[#D32F2F] border-slate-200 bg-white ${p.cantidad < 5 ? "text-red-600" : "text-green-700"}`}
+                                value={p.cantidad === 0 ? "" : p.cantidad}
+                                placeholder="0"
+                                onChange={(e) => {
+                                  const val = e.target.value === "" ? 0 : parseInt(e.target.value);
+                                  handleLocalStockChange(p.id, val);
+                                }}
+                                onBlur={() => handleSyncStock(p.id, p.cantidad)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleSyncStock(p.id, p.cantidad);
+                                }}
+                              />
 
-                            <Button 
-                              size="icon" 
-                              variant="outline" 
-                              className="h-8 w-8 text-green-600 border-green-200 hover:bg-green-50 flex-shrink-0" 
-                              onClick={() => {
-                                const newVal = p.cantidad + 1;
-                                handleLocalStockChange(p.id, newVal);
-                                handleSyncStock(p.id, newVal);
-                              }}
-                            >
-                              +
-                            </Button>
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase w-fit mb-1">{p.formato || "Unidad"}</span>
-                            <span className="text-xs text-slate-500 font-medium italic">{p.ubicacion || "Sin ubicación fija"}</span>
+                              <Button 
+                                size="icon" 
+                                variant="outline" 
+                                className="h-8 w-8 text-green-600 border-green-200 hover:bg-green-50 flex-shrink-0" 
+                                onClick={() => {
+                                  const newVal = p.cantidad + 1;
+                                  handleLocalStockChange(p.id, newVal);
+                                  handleSyncStock(p.id, newVal);
+                                }}
+                              >
+                                +
+                              </Button>
+                            </div>
+                            {p.formato && <span className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">{p.formato}</span>}
                           </div>
                         </TableCell>
 
@@ -326,7 +330,7 @@ export default function InventarioPage() {
                     ))}
                     {productosFiltrados.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-32 text-center text-slate-500">
+                        <TableCell colSpan={4} className="h-32 text-center text-slate-500">
                           No se encontraron materiales con ese criterio.
                         </TableCell>
                       </TableRow>
