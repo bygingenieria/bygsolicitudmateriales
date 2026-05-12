@@ -16,7 +16,8 @@ import {
   FileText,
   AlertCircle,
   ShoppingCart,
-  Trash2 // ✅ Importado para el CRUD
+  Trash2,
+  AlertTriangle // ✅ Importado para el modal
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -99,7 +100,11 @@ export default function PedidosBodegaPage() {
   const [solicitudes, setSolicitudes] = useState<SolicitudResumen[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
-  const [isDeleting, setIsDeleting] = useState<number | null>(null);
+  
+  // --- ESTADOS PARA MODAL DE BORRADO ---
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [pedidoToDelete, setPedidoToDelete] = useState<{id: number, folio: number} | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [selectedSolicitud, setSelectedSolicitud] = useState<SolicitudDetalle | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -150,19 +155,27 @@ export default function PedidosBodegaPage() {
     }
   };
 
-  // ✅ NUEVA FUNCIÓN: ELIMINAR PEDIDO
-  const handleDeletePedido = async (id: number, folio: number) => {
-    if (!confirm(`¿Estás seguro de eliminar permanentemente el pedido #${folio}?`)) return;
+  // ✅ NUEVA LÓGICA: ABRIR MODAL
+  const triggerDelete = (id: number, folio: number) => {
+    setPedidoToDelete({ id, folio });
+    setIsDeleteDialogOpen(true);
+  };
+
+  // ✅ NUEVA LÓGICA: EJECUTAR BORRADO DESDE MODAL
+  const confirmDelete = async () => {
+    if (!pedidoToDelete) return;
     
-    setIsDeleting(id);
+    setIsDeleting(true);
     try {
-      await solicitudesService.delete(id);
-      toast.success(`Pedido #${folio} eliminado exitosamente`);
+      await solicitudesService.delete(pedidoToDelete.id);
+      toast.success(`Pedido #${pedidoToDelete.folio} eliminado exitosamente`);
       fetchSolicitudes(); // Recargar la lista
+      setIsDeleteDialogOpen(false);
+      setPedidoToDelete(null);
     } catch (error) {
       toast.error("No se pudo eliminar el pedido. Revisa tus permisos.");
     } finally {
-      setIsDeleting(null);
+      setIsDeleting(false);
     }
   };
 
@@ -185,8 +198,8 @@ export default function PedidosBodegaPage() {
             </h1>
             <p className="text-slate-500 mt-1">Administración centralizada de solicitudes de materiales.</p>
           </div>
-          <Button variant="outline" onClick={() => router.push("/")} className="gap-2">
-            <ArrowLeft className="w-4 h-4" /> Volver
+          <Button variant="outline" onClick={() => router.push("/dashboard/bodeguero")} className="gap-2">
+            <ArrowLeft className="w-4 h-4" /> Volver al Inicio
           </Button>
         </div>
 
@@ -303,20 +316,15 @@ export default function PedidosBodegaPage() {
                           )}
                         </div>
                       </td>
-                      {/* ✅ CELDA DE ELIMINACIÓN */}
+                      {/* ✅ CELDA DE ELIMINACIÓN CON TRIGGER DEL MODAL */}
                       <td className="px-6 py-4 text-center">
                         <Button 
                           variant="ghost" 
                           size="icon" 
                           className="text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors"
-                          disabled={isDeleting === solicitud.id}
-                          onClick={() => handleDeletePedido(solicitud.id, solicitud.folio)}
+                          onClick={() => triggerDelete(solicitud.id, solicitud.folio)}
                         >
-                          {isDeleting === solicitud.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </td>
                     </tr>
@@ -327,6 +335,38 @@ export default function PedidosBodegaPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ✅ MODAL PERSONALIZADO PARA CONFIRMAR BORRADO */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[450px] border-t-8 border-t-red-600 p-8">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+              <AlertTriangle className="h-7 w-7 text-red-600" /> Confirmar Acción
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-slate-600 text-base leading-relaxed">
+              ¿Estás seguro de que deseas eliminar permanentemente el pedido <span className="font-bold">#{pedidoToDelete?.folio}</span>?
+              <br /><br />
+              <span className="font-bold text-red-600">Esta acción no se puede deshacer</span> y se perderá todo el historial vinculado.
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
+            <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)} className="font-bold h-11 px-6">
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDelete} 
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 font-bold gap-2 h-11 px-6 shadow-lg shadow-red-100"
+            >
+              {isDeleting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5" />}
+              Sí, Eliminar Pedido
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
