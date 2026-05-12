@@ -9,7 +9,7 @@ import { productosService } from "@/services/productos.service";
 import { useAuthStore } from "@/stores/auth.store";
 import { 
   Plus, Edit, Trash2, Save, Package, Search, Loader2, ArrowLeft, 
-  ChevronRight, ChevronLeft, LogOut, User, ShieldCheck, Truck, ShoppingBag 
+  ChevronRight, ChevronLeft, LogOut, User, ShieldCheck, Truck, ShoppingBag, AlertTriangle 
 } from "lucide-react";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -34,6 +34,11 @@ export default function InventarioPage() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [guardando, setGuardando] = useState<boolean>(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+  // Estados de Modal de Borrado
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
+  const [productToDelete, setProductToDelete] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState<boolean>(false);
 
   // Estados de Paginación
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -139,17 +144,25 @@ export default function InventarioPage() {
     }
   };
 
-  // --- NUEVA FUNCIÓN PARA BORRAR ---
-  const handleDelete = async (id: number) => {
-    const confirmar = window.confirm("¿Estás seguro de querer borrar este material del catálogo? Esta acción no se puede deshacer.");
-    if (!confirmar) return;
+  // --- LÓGICA DE BORRADO CON MODAL PROPIO ---
+  const triggerDelete = (id: number) => {
+    setProductToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
 
+  const confirmDelete = async () => {
+    if (productToDelete === null) return;
+    setDeleting(true);
     try {
-      await productosService.delete(id);
-      toast.success("Material eliminado correctamente");
+      await productosService.delete(productToDelete);
+      toast.success("Material eliminado del catálogo.");
       fetchProductos();
-    } catch (error) {
+      setIsDeleteDialogOpen(false);
+      setProductToDelete(null);
+    } catch {
       toast.error("Error al eliminar. Verifica si tienes permisos en el servidor.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -276,52 +289,50 @@ export default function InventarioPage() {
                           <p className="font-extrabold text-slate-800 text-base">{p.nombreProducto}</p>
                         </TableCell>
 
+                        {/* COLUMNA STOCK INTERACTIVA (Limpia sin el texto deforme) */}
                         <TableCell>
-                          <div className="flex flex-col items-center justify-center">
-                            <div className="flex items-center justify-center gap-3">
-                              <Button 
-                                size="icon" 
-                                variant="outline" 
-                                className="h-8 w-8 text-[#D32F2F] border-red-200 hover:bg-red-50 flex-shrink-0" 
-                                onClick={() => {
-                                  const newVal = Math.max(0, p.cantidad - 1);
-                                  handleLocalStockChange(p.id, newVal);
-                                  handleSyncStock(p.id, newVal);
-                                }}
-                              >
-                                -
-                              </Button>
-                              
-                              <Input
-                                type="number"
-                                min="0"
-                                className={`w-20 h-9 text-center font-black text-lg p-0 focus-visible:ring-2 focus-visible:ring-[#D32F2F] border-slate-200 bg-white ${p.cantidad < 5 ? "text-red-600" : "text-green-700"}`}
-                                value={p.cantidad === 0 ? "" : p.cantidad}
-                                placeholder="0"
-                                onChange={(e) => {
-                                  const val = e.target.value === "" ? 0 : parseInt(e.target.value);
-                                  handleLocalStockChange(p.id, val);
-                                }}
-                                onBlur={() => handleSyncStock(p.id, p.cantidad)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") handleSyncStock(p.id, p.cantidad);
-                                }}
-                              />
+                          <div className="flex items-center justify-center gap-3">
+                            <Button 
+                              size="icon" 
+                              variant="outline" 
+                              className="h-8 w-8 text-[#D32F2F] border-red-200 hover:bg-red-50 flex-shrink-0" 
+                              onClick={() => {
+                                const newVal = Math.max(0, p.cantidad - 1);
+                                handleLocalStockChange(p.id, newVal);
+                                handleSyncStock(p.id, newVal);
+                              }}
+                            >
+                              -
+                            </Button>
+                            
+                            <Input
+                              type="number"
+                              min="0"
+                              className={`w-20 h-9 text-center font-black text-lg p-0 focus-visible:ring-2 focus-visible:ring-[#D32F2F] border-slate-200 bg-white ${p.cantidad < 5 ? "text-red-600" : "text-green-700"}`}
+                              value={p.cantidad === 0 ? "" : p.cantidad}
+                              placeholder="0"
+                              onChange={(e) => {
+                                const val = e.target.value === "" ? 0 : parseInt(e.target.value);
+                                handleLocalStockChange(p.id, val);
+                              }}
+                              onBlur={() => handleSyncStock(p.id, p.cantidad)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSyncStock(p.id, p.cantidad);
+                              }}
+                            />
 
-                              <Button 
-                                size="icon" 
-                                variant="outline" 
-                                className="h-8 w-8 text-green-600 border-green-200 hover:bg-green-50 flex-shrink-0" 
-                                onClick={() => {
-                                  const newVal = p.cantidad + 1;
-                                  handleLocalStockChange(p.id, newVal);
-                                  handleSyncStock(p.id, newVal);
-                                }}
-                              >
-                                +
-                              </Button>
-                            </div>
-                            {p.formato && <span className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">{p.formato}</span>}
+                            <Button 
+                              size="icon" 
+                              variant="outline" 
+                              className="h-8 w-8 text-green-600 border-green-200 hover:bg-green-50 flex-shrink-0" 
+                              onClick={() => {
+                                const newVal = p.cantidad + 1;
+                                handleLocalStockChange(p.id, newVal);
+                                handleSyncStock(p.id, newVal);
+                              }}
+                            >
+                              +
+                            </Button>
                           </div>
                         </TableCell>
 
@@ -334,7 +345,8 @@ export default function InventarioPage() {
 
                         <TableCell className="text-right pr-8 space-x-1">
                           <Button size="icon" variant="ghost" className="text-slate-400 hover:text-[#D32F2F] hover:bg-red-50 rounded-lg" onClick={() => handleOpenDialog(p)}><Edit className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" className="text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg" onClick={() => handleDelete(p.id)}><Trash2 className="h-4 w-4" /></Button>
+                          {/* Llamada al nuevo modal de borrado */}
+                          <Button size="icon" variant="ghost" className="text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg" onClick={() => triggerDelete(p.id)}><Trash2 className="h-4 w-4" /></Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -423,6 +435,39 @@ export default function InventarioPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* MODAL PERSONALIZADO PARA CONFIRMAR BORRADO */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[450px] border-t-8 border-t-red-600 p-8">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+              <AlertTriangle className="h-7 w-7 text-red-600" /> Confirmar Acción
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-slate-600 text-base leading-relaxed">
+              ¿Estás seguro de que deseas eliminar este material del catálogo?
+              <br /><br />
+              <span className="font-bold text-red-600">Esta acción no se puede deshacer</span> y podría afectar a los pedidos que ya contienen este producto.
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
+            <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)} className="font-bold h-11 px-6">
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDelete} 
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700 font-bold gap-2 h-11 px-6 shadow-lg shadow-red-100"
+            >
+              {deleting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5" />}
+              Sí, Eliminar Material
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
