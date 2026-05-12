@@ -37,7 +37,7 @@ export default function InventarioPage() {
 
   // Estados de Paginación
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const itemsPerPage = 10; // Cantidad de productos por página
+  const itemsPerPage = 10; 
 
   const [formData, setFormData] = useState<CreateUpdateProductoDto>({
     nombreProducto: "", codigoProducto: "", cantidad: 0, formato: "",
@@ -69,7 +69,7 @@ export default function InventarioPage() {
       p.codigoProducto.toLowerCase().includes(lower)
     );
     setProductosFiltrados(filtrados);
-    setCurrentPage(1); // Si el usuario busca, lo devolvemos a la página 1 de resultados
+    setCurrentPage(1); 
   }, [searchTerm, productos]);
 
   // Cálculos de paginación
@@ -112,16 +112,19 @@ export default function InventarioPage() {
     }
   };
 
-  const updateStockQuickly = async (id: number, delta: number) => {
-    const prod = productos.find(p => p.id === id);
-    if (!prod) return;
-    const nuevaCantidad = Math.max(0, prod.cantidad + delta);
+  // --- NUEVA LÓGICA DE STOCK (Escritura y Botones) ---
+  const handleLocalStockChange = (id: number, newCantidad: number) => {
+    const validCantidad = Math.max(0, newCantidad || 0);
+    setProductos(prev => prev.map(p => p.id === id ? { ...p, cantidad: validCantidad } : p));
+    setProductosFiltrados(prev => prev.map(p => p.id === id ? { ...p, cantidad: validCantidad } : p));
+  };
+
+  const handleSyncStock = async (id: number, cantidad: number) => {
     try {
-      setProductos(productos.map(p => p.id === id ? { ...p, cantidad: nuevaCantidad } : p));
-      await productosService.updateStock(id, nuevaCantidad);
+      await productosService.updateStock(id, Math.max(0, cantidad));
     } catch { 
-      toast.error("Error al sincronizar con el servidor"); 
-      fetchProductos(); 
+      toast.error("Error al guardar el stock en la base de datos"); 
+      fetchProductos(); // Revertimos al valor real si falla
     }
   };
 
@@ -220,7 +223,8 @@ export default function InventarioPage() {
                     <TableRow>
                       <TableHead className="pl-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Código</TableHead>
                       <TableHead className="uppercase text-[10px] font-bold tracking-wider text-slate-500">Material</TableHead>
-                      <TableHead className="text-center uppercase text-[10px] font-bold tracking-wider text-slate-500 w-48">Stock en Bodega</TableHead>
+                      <TableHead className="text-center uppercase text-[10px] font-bold tracking-wider text-slate-500 w-56">Stock Físico</TableHead>
+                      <TableHead className="uppercase text-[10px] font-bold tracking-wider text-slate-500">Ubicación</TableHead>
                       <TableHead className="text-right pr-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -231,19 +235,59 @@ export default function InventarioPage() {
                         
                         <TableCell>
                           <p className="font-extrabold text-slate-800 text-base">{p.nombreProducto}</p>
-                          <p className="text-xs text-slate-500 font-medium mt-0.5">
-                            {p.ubicacion ? `Ubicación: ${p.ubicacion}` : "Sin ubicación asignada"}
-                          </p>
+                        </TableCell>
+
+                        {/* COLUMNA STOCK INTERACTIVA */}
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-3">
+                            <Button 
+                              size="icon" 
+                              variant="outline" 
+                              className="h-8 w-8 text-[#D32F2F] border-red-200 hover:bg-red-50 flex-shrink-0" 
+                              onClick={() => {
+                                const newVal = Math.max(0, p.cantidad - 1);
+                                handleLocalStockChange(p.id, newVal);
+                                handleSyncStock(p.id, newVal);
+                              }}
+                            >
+                              -
+                            </Button>
+                            
+                            <Input
+                              type="number"
+                              min="0"
+                              className={`w-20 h-9 text-center font-black text-lg p-0 focus-visible:ring-2 focus-visible:ring-[#D32F2F] border-slate-200 bg-white ${p.cantidad < 5 ? "text-red-600" : "text-green-700"}`}
+                              value={p.cantidad === 0 ? "" : p.cantidad}
+                              placeholder="0"
+                              onChange={(e) => {
+                                const val = e.target.value === "" ? 0 : parseInt(e.target.value);
+                                handleLocalStockChange(p.id, val);
+                              }}
+                              onBlur={() => handleSyncStock(p.id, p.cantidad)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSyncStock(p.id, p.cantidad);
+                              }}
+                            />
+
+                            <Button 
+                              size="icon" 
+                              variant="outline" 
+                              className="h-8 w-8 text-green-600 border-green-200 hover:bg-green-50 flex-shrink-0" 
+                              onClick={() => {
+                                const newVal = p.cantidad + 1;
+                                handleLocalStockChange(p.id, newVal);
+                                handleSyncStock(p.id, newVal);
+                              }}
+                            >
+                              +
+                            </Button>
+                          </div>
                         </TableCell>
 
                         <TableCell>
-                          <div className="flex flex-col items-center justify-center">
-                            <div className="flex items-center justify-center gap-4">
-                              <Button size="icon" variant="outline" className="h-8 w-8 text-[#D32F2F] border-red-100 hover:bg-red-50" onClick={() => updateStockQuickly(p.id, -1)}>-</Button>
-                              <span className={`text-xl font-black w-12 text-center ${p.cantidad < 5 ? "text-red-600" : "text-green-700"}`}>{p.cantidad}</span>
-                              <Button size="icon" variant="outline" className="h-8 w-8 text-green-600 border-green-100 hover:bg-green-50" onClick={() => updateStockQuickly(p.id, 1)}>+</Button>
-                            </div>
-                            {p.formato && <span className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">{p.formato}</span>}
+                          <div className="flex flex-col">
+                            <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase w-fit mb-1">{p.formato || "Unidad"}</span>
+                            <span className="text-xs text-slate-500 font-medium italic">{p.ubicacion || "Sin ubicación fija"}</span>
                           </div>
                         </TableCell>
 
@@ -255,7 +299,7 @@ export default function InventarioPage() {
                     ))}
                     {productosFiltrados.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} className="h-32 text-center text-slate-500">
+                        <TableCell colSpan={5} className="h-32 text-center text-slate-500">
                           No se encontraron materiales con ese criterio.
                         </TableCell>
                       </TableRow>
