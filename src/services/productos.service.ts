@@ -1,17 +1,28 @@
-import { api } from '@/lib/axios';
+import { api } from "@/lib/axios";
+import { Producto } from "@/types/productos";
 
 export const productosService = {
-  // 1. Traer todos los productos del inventario
-  getAll: async () => {
-    
-    const response = await api.get('/Productos'); 
-    return response.data;
+  getAll: async (): Promise<Producto[]> => {
+    const res = await api.get<Producto[]>("/productos");
+    return res.data;
   },
 
-  // 2. Traer productos filtrados por una bodega específica (Opcional)
-  getByBodega: async (bodegaId: number) => {
-     
-    const response = await api.get(`/Productos/bodega/${bodegaId}`);
-    return response.data;
-  }
+  create: async (data: Partial<Producto>): Promise<Producto> => {
+    const res = await api.post<Producto>("/productos", data);
+    return res.data;
+  },
+
+  update: async (id: number, data: Partial<Producto>): Promise<void> => {
+    await api.put(`/productos/${id}`, data);
+  },
+
+  updateStock: async (id: number, cantidad: number): Promise<void> => {
+    await api.patch(`/productos/${id}/stock`, cantidad, {
+      headers: { "Content-Type": "application/json" },
+    });
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/productos/${id}`);
+  },
 };

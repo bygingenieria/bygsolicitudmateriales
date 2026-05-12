@@ -16,17 +16,7 @@ import { productosService } from "@/services/productos.service";
 import { solicitudesService } from "@/services/solicitudes.service";
 import { useAuthStore } from "@/stores/auth.store";
 
-interface Producto {
-  id: number;
-  bodegaId: number;
-  codigoProducto: string;
-  nombreProducto: string;
-  ubicacion?: string;
-  tallaMedida?: string;
-  formato: string;
-  cantidad: number;
-  observacion?: string;
-}
+import { Producto } from "@/types/productos";
 
 interface ItemCarrito {
   productoId: number | null; 
@@ -109,7 +99,7 @@ export default function NuevaSolicitudPage() {
         productoId: prod.id,
         nombre: prod.nombreProducto,
         codigo: prod.codigoProducto,
-        unidad: prod.formato, 
+        unidad: prod.formato || "", 
         talla: prod.tallaMedida || "",
         observacion: manualItem.observacion 
       });

@@ -1,10 +1,30 @@
-// src/types/productos.ts
+export interface Bodega {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+}
 
 export interface Producto {
   id: number;
-  codigo: string;
-  nombre: string;
-  unidadMedida: string;
-  talla?: string;
-  stockActual: number; // Conectado al StockActual de C#
+  codigoProducto: string;
+  nombreProducto: string;
+  ubicacion?: string;
+  tallaMedida?: string;
+  formato?: string;
+  cantidad: number;
+  observacion?: string;
+  activo: boolean;
+  bodegaId: number;
+  bodega?: Bodega;
+}
+
+export interface CreateUpdateProductoDto {
+  codigoProducto: string;
+  nombreProducto: string;
+  ubicacion?: string;
+  tallaMedida?: string;
+  formato?: string;
+  cantidad: number;
+  observacion?: string;
+  bodegaId: number;
 }
