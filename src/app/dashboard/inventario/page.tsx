@@ -1,20 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Producto, CreateUpdateProductoDto } from "@/types/productos";
 import { productosService } from "@/services/productos.service";
+import { useAuthStore } from "@/stores/auth.store";
+import { 
+  Plus, Edit, Trash2, Save, Package, Search, Loader2, ArrowLeft, 
+  ChevronRight, LogOut, User, MapPin, Mail, ShoppingBag 
+} from "lucide-react";
+import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Edit, Trash2, Save, Package, Search, Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 export default function InventarioPage() {
+  const router = useRouter();
+  const { user, logout } = useAuthStore();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [productosFiltrados, setProductosFiltrados] = useState<Producto[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -22,18 +29,11 @@ export default function InventarioPage() {
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [guardando, setGuardando] = useState<boolean>(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  // Estado tipado para el formulario
   const [formData, setFormData] = useState<CreateUpdateProductoDto>({
-    nombreProducto: "",
-    codigoProducto: "",
-    cantidad: 0,
-    formato: "",
-    tallaMedida: "",
-    ubicacion: "",
-    observacion: "",
-    bodegaId: 1, 
-    activo: true
+    nombreProducto: "", codigoProducto: "", cantidad: 0, formato: "",
+    tallaMedida: "", ubicacion: "", observacion: "", bodegaId: 1, activo: true
   });
 
   const fetchProductos = async () => {
@@ -42,57 +42,33 @@ export default function InventarioPage() {
       const data = await productosService.getAll();
       setProductos(data);
       setProductosFiltrados(data);
-    } catch (error: unknown) {
-      toast.error("Error al cargar inventario");
-    } finally {
-      setLoading(false);
-    }
+    } catch { toast.error("Error al conectar con el servidor de inventario"); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchProductos();
-  }, []);
+  useEffect(() => { fetchProductos(); }, []);
 
-  // Efecto para la barra de búsqueda
   useEffect(() => {
-    if (!searchTerm.trim()) {
-      setProductosFiltrados(productos);
-    } else {
-      const lower = searchTerm.toLowerCase();
-      const filtrados = productos.filter(p => 
-        p.nombreProducto.toLowerCase().includes(lower) || 
-        p.codigoProducto.toLowerCase().includes(lower)
-      );
-      setProductosFiltrados(filtrados);
-    }
+    const lower = searchTerm.toLowerCase();
+    setProductosFiltrados(productos.filter(p => 
+      p.nombreProducto.toLowerCase().includes(lower) || p.codigoProducto.toLowerCase().includes(lower)
+    ));
   }, [searchTerm, productos]);
 
   const handleOpenDialog = (producto: Producto | null = null) => {
     if (producto) {
       setEditingProduct(producto);
       setFormData({
-        nombreProducto: producto.nombreProducto,
-        codigoProducto: producto.codigoProducto,
-        cantidad: producto.cantidad,
-        formato: producto.formato || "",
-        tallaMedida: producto.tallaMedida || "",
-        ubicacion: producto.ubicacion || "",
-        observacion: producto.observacion || "",
-        bodegaId: producto.bodegaId,
-        activo: producto.activo
+        nombreProducto: producto.nombreProducto, codigoProducto: producto.codigoProducto,
+        cantidad: producto.cantidad, formato: producto.formato || "",
+        tallaMedida: producto.tallaMedida || "", ubicacion: producto.ubicacion || "",
+        observacion: producto.observacion || "", bodegaId: producto.bodegaId, activo: producto.activo
       });
     } else {
       setEditingProduct(null);
       setFormData({
-        nombreProducto: "",
-        codigoProducto: "",
-        cantidad: 0,
-        formato: "",
-        tallaMedida: "",
-        ubicacion: "",
-        observacion: "",
-        bodegaId: 1,
-        activo: true
+        nombreProducto: "", codigoProducto: "", cantidad: 0, formato: "",
+        tallaMedida: "", ubicacion: "", observacion: "", bodegaId: 1, activo: true
       });
     }
     setIsDialogOpen(true);
@@ -102,250 +78,159 @@ export default function InventarioPage() {
     e.preventDefault();
     setGuardando(true);
     try {
-      if (editingProduct) {
-        await productosService.update(editingProduct.id, formData);
-        toast.success("Producto actualizado correctamente");
-      } else {
-        await productosService.create(formData);
-        toast.success("Producto creado exitosamente");
-      }
+      if (editingProduct) await productosService.update(editingProduct.id, formData);
+      else await productosService.create(formData);
+      toast.success(editingProduct ? "Material actualizado" : "Material registrado");
       setIsDialogOpen(false);
       fetchProductos();
-    } catch (error: unknown) {
-      toast.error("Error al guardar cambios");
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!window.confirm("¿Estás seguro de eliminar este material del sistema?")) return;
-    try {
-      await productosService.delete(id);
-      toast.success("Producto eliminado");
-      fetchProductos();
-    } catch (error: unknown) {
-      toast.error("No se pudo eliminar el producto");
-    }
+    } catch { toast.error("Error al procesar la solicitud"); }
+    finally { setGuardando(false); }
   };
 
   const updateStockQuickly = async (id: number, delta: number) => {
     const prod = productos.find(p => p.id === id);
     if (!prod) return;
-    
     const nuevaCantidad = Math.max(0, prod.cantidad + delta);
-    
     try {
-      // Actualizamos UI instantáneamente para mejor experiencia
       setProductos(productos.map(p => p.id === id ? { ...p, cantidad: nuevaCantidad } : p));
-      setProductosFiltrados(productosFiltrados.map(p => p.id === id ? { ...p, cantidad: nuevaCantidad } : p));
-      
       await productosService.updateStock(id, nuevaCantidad);
-    } catch (error: unknown) {
-      toast.error("Error al actualizar el stock en la base de datos");
-      // Revertimos si falla
-      fetchProductos(); 
-    }
+    } catch { toast.error("Error de sincronización"); fetchProductos(); }
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" onClick={() => window.history.back()} className="h-10 w-10">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-800">Inventario de Materiales</h1>
-            <p className="text-slate-500">Gestión total del catálogo y existencias en bodega.</p>
+    <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
+      <header className="fixed top-0 w-full z-50 border-b border-slate-200 bg-white/90 backdrop-blur-md shadow-sm">
+        <div className="container mx-auto px-4 h-20 flex items-center justify-between max-w-6xl">
+          <Link href="/" className="flex items-center gap-3">
+            <Image src="https://res.cloudinary.com/dsljo0xlb/image/upload/v1768900061/ByG_ingeniera_logo_isltvf.png" alt="Logo" width={160} height={60} className="h-10 w-auto object-contain" />
+            <div className="flex flex-col border-l pl-3">
+              <span className="text-[10px] font-bold text-[#D32F2F] uppercase tracking-widest">Inventario Central</span>
+            </div>
+          </Link>
+          <div className="relative">
+            <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-100 transition-all border outline-none">
+              <div className="h-9 w-9 rounded-full bg-[#D32F2F] text-white flex items-center justify-center font-bold text-sm">
+                {user?.nombres?.charAt(0).toUpperCase()}
+              </div>
+              <ChevronRight className={`w-4 h-4 transition-transform ${isUserMenuOpen ? "rotate-90" : ""}`} />
+            </button>
+            {isUserMenuOpen && (
+              <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-2xl border z-50 overflow-hidden">
+                <div className="px-4 py-4 bg-slate-50 border-b"><p className="text-sm font-bold">{user?.nombres} {user?.apellidos}</p></div>
+                <div className="p-2">
+                  <button onClick={() => { logout(); router.push("/login"); }} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <LogOut className="w-4 h-4" /> Cerrar Sesión
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="gap-2 bg-blue-600 hover:bg-blue-700">
-          <Plus className="h-4 w-4" /> Nuevo Material
-        </Button>
-      </div>
+      </header>
 
-      <Card className="border-t-4 border-t-blue-600 shadow-md">
-        <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Package className="h-5 w-5 text-blue-600" />
-            Catálogo
-          </CardTitle>
-          <div className="relative w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-            <Input 
-              placeholder="Buscar material..." 
-              className="pl-9 h-9" 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4 p-0">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-              <Loader2 className="h-8 w-8 animate-spin mb-2 text-blue-600" />
-              <p>Cargando inventario...</p>
+      <main className="flex-grow pt-32 pb-20 px-4 max-w-6xl mx-auto w-full">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="icon" onClick={() => router.back()} className="h-10 w-10 rounded-full border-slate-300 hover:border-[#D32F2F] hover:text-[#D32F2F]">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Control de Almacén</h1>
+              <p className="text-slate-500 mt-1">Gestión técnica de materiales y existencias críticas.</p>
             </div>
-          ) : (
-            <Table>
-              <TableHeader className="bg-slate-50">
-                <TableRow>
-                  <TableHead className="pl-6">Código</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Ubicación</TableHead>
-                  <TableHead>Unidad</TableHead>
-                  <TableHead className="text-center">Stock Físico</TableHead>
-                  <TableHead className="text-right pr-6">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {productosFiltrados.length === 0 ? (
+          </div>
+          <Button onClick={() => handleOpenDialog()} className="bg-[#D32F2F] hover:bg-red-700 font-bold gap-2 h-11 px-6 shadow-lg shadow-red-100">
+            <Plus className="h-5 w-5" /> Registrar Producto
+          </Button>
+        </div>
+
+        <Card className="border-t-4 border-t-[#D32F2F] shadow-xl overflow-hidden border-x-0 border-b-0">
+          <CardHeader className="bg-white border-b flex flex-row items-center justify-between py-6 px-8">
+            <CardTitle className="text-xl flex items-center gap-3"><Package className="h-6 w-6 text-[#D32F2F]" /> Catálogo General</CardTitle>
+            <div className="relative w-80">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+              <Input placeholder="Filtrar por código o nombre..." className="pl-10 h-10 border-slate-200 bg-slate-50 focus-visible:ring-[#D32F2F]" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="flex flex-col items-center py-24 text-slate-400"><Loader2 className="h-12 w-12 animate-spin text-[#D32F2F]" /><p className="mt-4 font-medium">Sincronizando inventario...</p></div>
+            ) : (
+              <Table>
+                <TableHeader className="bg-slate-50/80">
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                      No se encontraron productos registrados.
-                    </TableCell>
+                    <TableHead className="pl-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Código</TableHead>
+                    <TableHead className="uppercase text-[10px] font-bold tracking-wider text-slate-500">Descripción</TableHead>
+                    <TableHead className="text-center uppercase text-[10px] font-bold tracking-wider text-slate-500">Stock Físico</TableHead>
+                    <TableHead className="uppercase text-[10px] font-bold tracking-wider text-slate-500">Detalles</TableHead>
+                    <TableHead className="text-right pr-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Acciones</TableHead>
                   </TableRow>
-                ) : (
-                  productosFiltrados.map((producto) => (
-                    <TableRow key={producto.id} className="hover:bg-slate-50/50">
-                      <TableCell className="pl-6 font-mono text-xs font-semibold text-slate-600">
-                        {producto.codigoProducto}
-                      </TableCell>
-                      <TableCell className="font-bold text-slate-800">
-                        {producto.nombreProducto}
-                      </TableCell>
-                      <TableCell className="text-slate-500 text-sm">
-                        {producto.ubicacion || "---"}
-                      </TableCell>
-                      <TableCell className="text-slate-500 text-sm">
-                        {producto.formato || "---"}
-                        {producto.tallaMedida ? ` (${producto.tallaMedida})` : ""}
-                      </TableCell>
+                </TableHeader>
+                <TableBody>
+                  {productosFiltrados.map((p) => (
+                    <TableRow key={p.id} className="hover:bg-slate-50/50 transition-colors border-b-slate-100">
+                      <TableCell className="pl-8 font-mono text-xs font-bold text-slate-400">{p.codigoProducto}</TableCell>
+                      <TableCell className="font-extrabold text-slate-800 text-base">{p.nombreProducto}</TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-center gap-2">
-                          <Button 
-                            size="icon" 
-                            variant="outline" 
-                            className="h-7 w-7 text-slate-500 hover:text-red-600" 
-                            onClick={() => updateStockQuickly(producto.id, -1)}
-                          >
-                            -
-                          </Button>
-                          <span className={`w-12 text-center text-lg font-black ${producto.cantidad <= 0 ? "text-red-500" : producto.cantidad < 5 ? "text-orange-500" : "text-green-600"}`}>
-                            {producto.cantidad}
-                          </span>
-                          <Button 
-                            size="icon" 
-                            variant="outline" 
-                            className="h-7 w-7 text-slate-500 hover:text-green-600" 
-                            onClick={() => updateStockQuickly(producto.id, 1)}
-                          >
-                            +
-                          </Button>
+                        <div className="flex items-center justify-center gap-4">
+                          <Button size="icon" variant="outline" className="h-8 w-8 text-[#D32F2F] border-red-100 hover:bg-red-50" onClick={() => updateStockQuickly(p.id, -1)}>-</Button>
+                          <span className={`text-xl font-black w-12 text-center ${p.cantidad < 5 ? "text-red-600" : "text-green-700"}`}>{p.cantidad}</span>
+                          <Button size="icon" variant="outline" className="h-8 w-8 text-green-600 border-green-100 hover:bg-green-50" onClick={() => updateStockQuickly(p.id, 1)}>+</Button>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right pr-6">
-                        <Button size="icon" variant="ghost" className="text-blue-600 hover:bg-blue-50" onClick={() => handleOpenDialog(producto)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="text-red-500 hover:bg-red-50" onClick={() => handleDelete(producto.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      <TableCell>
+                        <div className="flex flex-col"><span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase w-fit mb-1">{p.formato || "Unidad"}</span><span className="text-xs text-slate-500 font-medium italic">{p.ubicacion || "Sin ubicación fija"}</span></div>
+                      </TableCell>
+                      <TableCell className="text-right pr-8 space-x-1">
+                        <Button size="icon" variant="ghost" className="text-slate-400 hover:text-[#D32F2F] hover:bg-red-50 rounded-lg" onClick={() => handleOpenDialog(p)}><Edit className="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost" className="text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg" onClick={async () => { if(confirm("¿Eliminar este material?")) { await productosService.delete(p.id); fetchProductos(); } }}><Trash2 className="h-4 w-4" /></Button>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </main>
+
+      <footer className="bg-[#222222] text-[#CCCCCC] mt-auto">
+        <div className="container mx-auto px-4 py-12 max-w-6xl">
+          <div className="flex flex-col md:flex-row justify-between items-center md:items-start gap-10">
+            <div className="space-y-4 text-center md:text-left">
+              <Image src="https://res.cloudinary.com/dsljo0xlb/image/upload/v1768940307/LOGO-BYG_BLANCO-PNG_zdbhuy.png" alt="Logo" width={160} height={60} className="mx-auto md:mx-0 h-16 w-auto object-contain" />
+              <p className="text-xs text-gray-500 max-w-xs">Módulo de gestión de materiales para el personal de ByG Ingeniería.</p>
+            </div>
+            <div className="flex gap-10 text-sm">
+              <div className="space-y-2">
+                <h4 className="text-white font-bold border-b border-[#D32F2F] pb-1 uppercase text-xs tracking-widest">Navegación</h4>
+                <Link href="/dashboard/bodeguero" className="block hover:text-white transition-colors">Volver al Panel</Link>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="py-4 text-center text-[10px] text-gray-700 bg-[#1a1a1a] border-t border-[#333333]">© {new Date().getFullYear()} ByG Ingeniería. Portal de Inventario.</div>
+      </footer>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-blue-700">
-              {editingProduct ? "Editar Material" : "Registrar Nuevo Material"}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="font-bold">Código del Producto *</Label>
-                <Input 
-                  value={formData.codigoProducto} 
-                  onChange={(e) => setFormData({...formData, codigoProducto: e.target.value})} 
-                  placeholder="Ej: MTR-001"
-                  required 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="font-bold">Nombre del Producto *</Label>
-                <Input 
-                  value={formData.nombreProducto} 
-                  onChange={(e) => setFormData({...formData, nombreProducto: e.target.value})} 
-                  placeholder="Ej: Disco de Corte 7''"
-                  required 
-                />
-              </div>
+        <DialogContent className="sm:max-w-[550px] border-t-8 border-t-[#D32F2F] p-8">
+          <DialogHeader><DialogTitle className="text-2xl font-black text-slate-900 tracking-tight">{editingProduct ? "Editar Especificaciones" : "Registrar Nuevo Material"}</DialogTitle></DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-6 pt-6">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2"><Label className="text-xs font-bold uppercase text-slate-500">Código de Referencia</Label><Input value={formData.codigoProducto} onChange={(e) => setFormData({...formData, codigoProducto: e.target.value})} required className="h-11 bg-slate-50 border-slate-200" /></div>
+              <div className="space-y-2"><Label className="text-xs font-bold uppercase text-slate-500">Nombre / Descripción</Label><Input value={formData.nombreProducto} onChange={(e) => setFormData({...formData, nombreProducto: e.target.value})} required className="h-11 bg-slate-50 border-slate-200" /></div>
             </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label className="font-bold">Stock Físico *</Label>
-                <Input 
-                  type="number" 
-                  min="0"
-                  className="font-bold text-lg"
-                  value={formData.cantidad} 
-                  onChange={(e) => setFormData({...formData, cantidad: parseInt(e.target.value) || 0})} 
-                  required 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="font-bold">Unidad / Formato</Label>
-                <Input 
-                  placeholder="Ej: Unidad, Par, Caja" 
-                  value={formData.formato} 
-                  onChange={(e) => setFormData({...formData, formato: e.target.value})} 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="font-bold">Talla / Medida</Label>
-                <Input 
-                  placeholder="Ej: L, 10mm, 7''" 
-                  value={formData.tallaMedida} 
-                  onChange={(e) => setFormData({...formData, tallaMedida: e.target.value})} 
-                />
-              </div>
+            <div className="grid grid-cols-3 gap-6">
+              <div className="space-y-2"><Label className="text-xs font-bold uppercase text-[#D32F2F]">Stock en Bodega</Label><Input type="number" value={formData.cantidad} onChange={(e) => setFormData({...formData, cantidad: parseInt(e.target.value) || 0})} required className="h-11 bg-red-50 border-red-200 text-red-900 font-black text-lg" /></div>
+              <div className="space-y-2"><Label className="text-xs font-bold uppercase text-slate-500">Unidad (Caja/Par)</Label><Input value={formData.formato} onChange={(e) => setFormData({...formData, formato: e.target.value})} className="h-11 bg-slate-50" /></div>
+              <div className="space-y-2"><Label className="text-xs font-bold uppercase text-slate-500">Talla / Medida</Label><Input value={formData.tallaMedida} onChange={(e) => setFormData({...formData, tallaMedida: e.target.value})} className="h-11 bg-slate-50" /></div>
             </div>
-
-            <div className="space-y-2">
-              <Label className="font-bold">Ubicación Físico en Bodega</Label>
-              <Input 
-                placeholder="Ej: Pasillo A, Estante 3" 
-                value={formData.ubicacion} 
-                onChange={(e) => setFormData({...formData, ubicacion: e.target.value})} 
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="font-bold">Observaciones Adicionales</Label>
-              <Input 
-                placeholder="Marca preferida, advertencias de uso, etc." 
-                value={formData.observacion} 
-                onChange={(e) => setFormData({...formData, observacion: e.target.value})} 
-              />
-            </div>
-
-            <div className="pt-4 flex gap-3 justify-end border-t mt-6">
-              <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={guardando} className="gap-2 bg-blue-600 hover:bg-blue-700">
-                {guardando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {editingProduct ? "Actualizar" : "Guardar Producto"}
+            <div className="space-y-2"><Label className="text-xs font-bold uppercase text-slate-500">Ubicación Física (Pasillo / Estante)</Label><Input value={formData.ubicacion} onChange={(e) => setFormData({...formData, ubicacion: e.target.value})} className="h-11 bg-slate-50 border-slate-200" /></div>
+            <div className="pt-6 border-t flex gap-4 justify-end">
+              <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)} className="h-12 px-6">Cancelar</Button>
+              <Button type="submit" disabled={guardando} className="bg-[#D32F2F] hover:bg-red-700 font-extrabold h-12 px-8 gap-2 shadow-lg shadow-red-100">
+                {guardando ? <Loader2 className="animate-spin h-5 w-5" /> : <Save className="h-5 w-5" />} 
+                {editingProduct ? "Actualizar Material" : "Guardar Registro"}
               </Button>
             </div>
           </form>

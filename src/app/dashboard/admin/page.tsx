@@ -10,7 +10,8 @@ import {
   ArrowLeft, 
   ShieldCheck,
   Package, 
-  Loader2
+  Loader2,
+  ClipboardList
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -47,7 +48,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 pt-24 font-sans">
-      <div className="container mx-auto max-w-5xl space-y-8">
+      <div className="container mx-auto max-w-6xl space-y-8">
         
         {/* --- ENCABEZADO ADMIN --- */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-6">
@@ -71,9 +72,53 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* --- CONTENIDO --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* GESTIÓN DE USUARIOS (ROJO) */}
+          {/* GESTIÓN DE PEDIDOS (ROJO) */}
+          <Card className="hover:shadow-xl transition-all border-l-4 border-l-[#D32F2F] cursor-pointer group bg-white">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3 text-xl group-hover:text-[#D32F2F] transition-colors">
+                 <div className="p-2 bg-red-50 rounded-lg group-hover:bg-red-100 transition-colors">
+                    <ClipboardList className="w-6 h-6 text-[#D32F2F]" />
+                 </div>
+                Gestión de Pedidos
+              </CardTitle>
+              <CardDescription className="text-base">
+                Revisar solicitudes, aprobar material y ver historial.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/dashboard/admin/pedidos">
+                <Button className="w-full bg-slate-900 hover:bg-[#D32F2F] text-white font-semibold h-12 transition-colors">
+                  Administrar Pedidos
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          {/* GESTIÓN DE INVENTARIO (NARANJA/ROJO) */}
+          <Card className="hover:shadow-xl transition-all border-l-4 border-l-[#D32F2F] cursor-pointer group bg-white">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3 text-xl group-hover:text-[#D32F2F] transition-colors">
+                 <div className="p-2 bg-red-50 rounded-lg group-hover:bg-red-100 transition-colors">
+                    <Package className="w-6 h-6 text-[#D32F2F]" />
+                 </div>
+                Gestión de Inventario
+              </CardTitle>
+              <CardDescription className="text-base">
+                Control de existencias, catálogo y almacén físico.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/dashboard/inventario">
+                <Button className="w-full bg-slate-900 hover:bg-[#D32F2F] text-white font-semibold h-12 transition-colors">
+                  Control de Stock
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          {/* GESTIÓN DE USUARIOS (GRIS OSCURO/ROJO) */}
           <Card className="hover:shadow-xl transition-all border-l-4 border-l-[#D32F2F] cursor-pointer group bg-white">
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-xl group-hover:text-[#D32F2F] transition-colors">
@@ -90,28 +135,6 @@ export default function AdminDashboardPage() {
               <Link href="/dashboard/admin/usuarios">
                 <Button className="w-full bg-slate-900 hover:bg-[#D32F2F] text-white font-semibold h-12 transition-colors">
                   Administrar Usuarios
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          {/* GESTIÓN DE PEDIDOS (ROJO) */}
-          <Card className="hover:shadow-xl transition-all border-l-4 border-l-[#D32F2F] cursor-pointer group bg-white">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-xl group-hover:text-[#D32F2F] transition-colors">
-                 <div className="p-2 bg-red-50 rounded-lg group-hover:bg-red-100 transition-colors">
-                    <Package className="w-6 h-6 text-[#D32F2F]" />
-                 </div>
-                Gestión de Pedidos
-              </CardTitle>
-              <CardDescription className="text-base">
-                Revisar solicitudes, aprobar material y ver historial.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link href="/dashboard/admin/pedidos">
-                <Button className="w-full bg-slate-900 hover:bg-[#D32F2F] text-white font-semibold h-12 transition-colors">
-                  Administrar Pedidos
                 </Button>
               </Link>
             </CardContent>
