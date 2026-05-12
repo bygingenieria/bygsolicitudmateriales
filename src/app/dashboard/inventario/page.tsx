@@ -9,7 +9,7 @@ import { productosService } from "@/services/productos.service";
 import { useAuthStore } from "@/stores/auth.store";
 import { 
   Plus, Edit, Trash2, Save, Package, Search, Loader2, ArrowLeft, 
-  ChevronRight, LogOut, User, MapPin, Mail, ShoppingBag, ShieldCheck, Truck
+  ChevronRight, ChevronLeft, LogOut, User, ShieldCheck, Truck, ShoppingBag 
 } from "lucide-react";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,14 +22,22 @@ import { Label } from "@/components/ui/label";
 export default function InventarioPage() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  
+  // Estados de datos
   const [productos, setProductos] = useState<Producto[]>([]);
   const [productosFiltrados, setProductosFiltrados] = useState<Producto[]>([]);
+  
+  // Estados de UI
   const [loading, setLoading] = useState<boolean>(true);
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [guardando, setGuardando] = useState<boolean>(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+  // Estados de Paginación
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 10; // Cantidad de productos por página
 
   const [formData, setFormData] = useState<CreateUpdateProductoDto>({
     nombreProducto: "", codigoProducto: "", cantidad: 0, formato: "",
@@ -42,18 +50,32 @@ export default function InventarioPage() {
       const data = await productosService.getAll();
       setProductos(data);
       setProductosFiltrados(data);
-    } catch { toast.error("Error al conectar con el servidor de inventario"); }
-    finally { setLoading(false); }
+    } catch { 
+      toast.error("Error al conectar con el servidor de inventario"); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
-  useEffect(() => { fetchProductos(); }, []);
+  useEffect(() => { 
+    fetchProductos(); 
+  }, []);
 
+  // Efecto combinado para Búsqueda y reset de Paginación
   useEffect(() => {
     const lower = searchTerm.toLowerCase();
-    setProductosFiltrados(productos.filter(p => 
-      p.nombreProducto.toLowerCase().includes(lower) || p.codigoProducto.toLowerCase().includes(lower)
-    ));
+    const filtrados = productos.filter(p => 
+      p.nombreProducto.toLowerCase().includes(lower) || 
+      p.codigoProducto.toLowerCase().includes(lower)
+    );
+    setProductosFiltrados(filtrados);
+    setCurrentPage(1); // Si el usuario busca, lo devolvemos a la página 1 de resultados
   }, [searchTerm, productos]);
+
+  // Cálculos de paginación
+  const totalPages = Math.ceil(productosFiltrados.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedProductos = productosFiltrados.slice(startIndex, startIndex + itemsPerPage);
 
   const handleOpenDialog = (producto: Producto | null = null) => {
     if (producto) {
@@ -83,8 +105,11 @@ export default function InventarioPage() {
       toast.success(editingProduct ? "Material actualizado" : "Material registrado");
       setIsDialogOpen(false);
       fetchProductos();
-    } catch { toast.error("Revisa los datos e intenta nuevamente."); }
-    finally { setGuardando(false); }
+    } catch { 
+      toast.error("Revisa los datos e intenta nuevamente."); 
+    } finally { 
+      setGuardando(false); 
+    }
   };
 
   const updateStockQuickly = async (id: number, delta: number) => {
@@ -107,7 +132,7 @@ export default function InventarioPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
-      {/* HEADER */}
+      {/* HEADER INSTITUCIONAL */}
       <header className="fixed top-0 w-full z-50 border-b border-slate-200 bg-white/90 backdrop-blur-md shadow-sm">
         <div className="container mx-auto px-4 h-20 flex items-center justify-between max-w-6xl">
           <Link href="/" className="flex items-center gap-3">
@@ -189,60 +214,93 @@ export default function InventarioPage() {
             {loading ? (
               <div className="flex flex-col items-center py-24 text-slate-400"><Loader2 className="h-12 w-12 animate-spin text-[#D32F2F]" /><p className="mt-4 font-medium">Sincronizando inventario...</p></div>
             ) : (
-              <Table>
-                <TableHeader className="bg-slate-50/80">
-                  <TableRow>
-                    <TableHead className="pl-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Código</TableHead>
-                    <TableHead className="uppercase text-[10px] font-bold tracking-wider text-slate-500">Material</TableHead>
-                    <TableHead className="text-center uppercase text-[10px] font-bold tracking-wider text-slate-500 w-48">Stock en Bodega</TableHead>
-                    <TableHead className="text-right pr-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {productosFiltrados.map((p) => (
-                    <TableRow key={p.id} className="hover:bg-slate-50/50 transition-colors border-b-slate-100">
-                      <TableCell className="pl-8 font-mono text-xs font-bold text-slate-400">{p.codigoProducto}</TableCell>
-                      
-                      {/* COLUMNA MATERIAL + UBICACIÓN */}
-                      <TableCell>
-                        <p className="font-extrabold text-slate-800 text-base">{p.nombreProducto}</p>
-                        <p className="text-xs text-slate-500 font-medium mt-0.5">
-                          {p.ubicacion ? `Ubicación: ${p.ubicacion}` : "Sin ubicación asignada"}
-                        </p>
-                      </TableCell>
-
-                      {/* COLUMNA STOCK + FORMATO */}
-                      <TableCell>
-                        <div className="flex flex-col items-center justify-center">
-                          <div className="flex items-center justify-center gap-4">
-                            <Button size="icon" variant="outline" className="h-8 w-8 text-[#D32F2F] border-red-100 hover:bg-red-50" onClick={() => updateStockQuickly(p.id, -1)}>-</Button>
-                            <span className={`text-xl font-black w-12 text-center ${p.cantidad < 5 ? "text-red-600" : "text-green-700"}`}>{p.cantidad}</span>
-                            <Button size="icon" variant="outline" className="h-8 w-8 text-green-600 border-green-100 hover:bg-green-50" onClick={() => updateStockQuickly(p.id, 1)}>+</Button>
-                          </div>
-                          {p.formato && <span className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">{p.formato}</span>}
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="text-right pr-8 space-x-1">
-                        <Button size="icon" variant="ghost" className="text-slate-400 hover:text-[#D32F2F] hover:bg-red-50 rounded-lg" onClick={() => handleOpenDialog(p)}><Edit className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" className="text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg" onClick={async () => { if(confirm("¿Eliminar este material del catálogo?")) { await productosService.delete(p.id); fetchProductos(); } }}><Trash2 className="h-4 w-4" /></Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {productosFiltrados.length === 0 && (
+              <>
+                <Table>
+                  <TableHeader className="bg-slate-50/80">
                     <TableRow>
-                      <TableCell colSpan={4} className="h-32 text-center text-slate-500">
-                        No se encontraron materiales con ese criterio.
-                      </TableCell>
+                      <TableHead className="pl-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Código</TableHead>
+                      <TableHead className="uppercase text-[10px] font-bold tracking-wider text-slate-500">Material</TableHead>
+                      <TableHead className="text-center uppercase text-[10px] font-bold tracking-wider text-slate-500 w-48">Stock en Bodega</TableHead>
+                      <TableHead className="text-right pr-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Acciones</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedProductos.map((p) => (
+                      <TableRow key={p.id} className="hover:bg-slate-50/50 transition-colors border-b-slate-100">
+                        <TableCell className="pl-8 font-mono text-xs font-bold text-slate-400">{p.codigoProducto}</TableCell>
+                        
+                        <TableCell>
+                          <p className="font-extrabold text-slate-800 text-base">{p.nombreProducto}</p>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5">
+                            {p.ubicacion ? `Ubicación: ${p.ubicacion}` : "Sin ubicación asignada"}
+                          </p>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="flex flex-col items-center justify-center">
+                            <div className="flex items-center justify-center gap-4">
+                              <Button size="icon" variant="outline" className="h-8 w-8 text-[#D32F2F] border-red-100 hover:bg-red-50" onClick={() => updateStockQuickly(p.id, -1)}>-</Button>
+                              <span className={`text-xl font-black w-12 text-center ${p.cantidad < 5 ? "text-red-600" : "text-green-700"}`}>{p.cantidad}</span>
+                              <Button size="icon" variant="outline" className="h-8 w-8 text-green-600 border-green-100 hover:bg-green-50" onClick={() => updateStockQuickly(p.id, 1)}>+</Button>
+                            </div>
+                            {p.formato && <span className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">{p.formato}</span>}
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-right pr-8 space-x-1">
+                          <Button size="icon" variant="ghost" className="text-slate-400 hover:text-[#D32F2F] hover:bg-red-50 rounded-lg" onClick={() => handleOpenDialog(p)}><Edit className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" className="text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg" onClick={async () => { if(confirm("¿Eliminar este material del catálogo?")) { await productosService.delete(p.id); fetchProductos(); } }}><Trash2 className="h-4 w-4" /></Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {productosFiltrados.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-32 text-center text-slate-500">
+                          No se encontraron materiales con ese criterio.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+
+                {/* CONTROLES DE PAGINACIÓN */}
+                {productosFiltrados.length > 0 && (
+                  <div className="flex items-center justify-between px-8 py-4 border-t bg-slate-50/50">
+                    <div className="text-xs font-medium text-slate-500">
+                      Mostrando <span className="font-bold text-slate-800">{startIndex + 1}</span> a <span className="font-bold text-slate-800">{Math.min(startIndex + itemsPerPage, productosFiltrados.length)}</span> de <span className="font-bold text-slate-800">{productosFiltrados.length}</span> materiales
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="h-8 gap-1 text-slate-600"
+                      >
+                        <ChevronLeft className="w-4 h-4" /> Anterior
+                      </Button>
+                      <span className="text-xs font-bold text-slate-700">
+                        Pág. {currentPage} de {totalPages}
+                      </span>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="h-8 gap-1 text-slate-600"
+                      >
+                        Siguiente <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
       </main>
 
+      {/* FOOTER INSTITUCIONAL */}
       <footer className="bg-[#222222] text-[#CCCCCC] mt-auto">
         <div className="container mx-auto px-4 py-12 max-w-6xl">
           <div className="flex flex-col md:flex-row justify-between items-center md:items-start gap-10">
