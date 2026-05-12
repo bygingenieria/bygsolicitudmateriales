@@ -77,6 +77,31 @@ export default function InventarioPage() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedProductos = productosFiltrados.slice(startIndex, startIndex + itemsPerPage);
 
+  // --- LÓGICA DE AUTOGENERACIÓN DE CÓDIGO ---
+  const generateNextCode = (productosList: Producto[]): string => {
+    if (productosList.length === 0) return "artof 1";
+    
+    // Obtenemos el último producto creado (asumiendo que el ID más alto es el último)
+    const lastProduct = [...productosList].sort((a, b) => b.id - a.id)[0];
+    const lastCode = lastProduct.codigoProducto.trim();
+    
+    // Buscamos separar el texto del número final (ej: "artof 50" -> ["artof 50", "artof ", "50"])
+    const match = lastCode.match(/^(.+?)(\d+)$/);
+    
+    if (match) {
+      const prefix = match[1]; // Ej: "artof " o "ARTOF-"
+      const numberStr = match[2]; // Ej: "50" o "050"
+      const nextNumber = parseInt(numberStr, 10) + 1;
+      
+      // Mantiene los ceros a la izquierda si el usuario los usa (Ej: 001 -> 002)
+      const paddedNumber = nextNumber.toString().padStart(numberStr.length, "0");
+      return `${prefix}${paddedNumber}`;
+    }
+    
+    // Si el último código no terminaba en número, simplemente le agregamos un "-1"
+    return `${lastCode}-1`;
+  };
+
   const handleOpenDialog = (producto: Producto | null = null) => {
     if (producto) {
       setEditingProduct(producto);
@@ -89,7 +114,9 @@ export default function InventarioPage() {
     } else {
       setEditingProduct(null);
       setFormData({
-        nombreProducto: "", codigoProducto: "", cantidad: 0, formato: "",
+        nombreProducto: "", 
+        codigoProducto: generateNextCode(productos), // ¡AQUÍ SE AUTOGENERA EL CÓDIGO!
+        cantidad: 0, formato: "",
         tallaMedida: "", ubicacion: "", observacion: "", bodegaId: 1, activo: true
       });
     }
@@ -112,7 +139,7 @@ export default function InventarioPage() {
     }
   };
 
-  // --- NUEVA LÓGICA DE STOCK (Escritura y Botones) ---
+  // Lógica de Stock Interactiva
   const handleLocalStockChange = (id: number, newCantidad: number) => {
     const validCantidad = Math.max(0, newCantidad || 0);
     setProductos(prev => prev.map(p => p.id === id ? { ...p, cantidad: validCantidad } : p));
@@ -124,7 +151,7 @@ export default function InventarioPage() {
       await productosService.updateStock(id, Math.max(0, cantidad));
     } catch { 
       toast.error("Error al guardar el stock en la base de datos"); 
-      fetchProductos(); // Revertimos al valor real si falla
+      fetchProductos(); 
     }
   };
 
@@ -357,7 +384,7 @@ export default function InventarioPage() {
         <div className="py-4 text-center text-[10px] text-gray-700 bg-[#1a1a1a] border-t border-[#333333]">© {new Date().getFullYear()} ByG Ingeniería. Portal de Inventario.</div>
       </footer>
 
-      {/* MODAL DE EDICIÓN */}
+      {/* MODAL DE EDICIÓN / CREACIÓN */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[550px] border-t-8 border-t-[#D32F2F] p-8">
           <DialogHeader><DialogTitle className="text-2xl font-black text-slate-900 tracking-tight">{editingProduct ? "Editar Especificaciones" : "Registrar Nuevo Material"}</DialogTitle></DialogHeader>
