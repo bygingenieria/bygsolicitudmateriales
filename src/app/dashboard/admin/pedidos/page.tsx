@@ -16,7 +16,8 @@ import {
   FileText,
   AlertCircle,
   ShoppingCart,
-  Trash2
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { solicitudesService } from "@/services/solicitudes.service";
 import { SolicitudResumen, SolicitudDetalle } from "@/types/solicitudes";
 
+// MAPEO DE COLORES
 const getStatusBadge = (estado: string) => {
   switch (estado) {
     case "Pendiente": return "bg-yellow-500 hover:bg-yellow-600";
@@ -55,8 +57,12 @@ export default function PanelBodegaUnificadoPage() {
   const [solicitudes, setSolicitudes] = useState<SolicitudResumen[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
-  const [isDeleting, setIsDeleting] = useState<number | null>(null);
   const [selectedSolicitud, setSelectedSolicitud] = useState<SolicitudDetalle | null>(null);
+
+  // ESTADOS DEL MODAL DE BORRADO
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [pedidoToDelete, setPedidoToDelete] = useState<{ id: number; folio: number } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchSolicitudes = async () => {
     try {
@@ -88,15 +94,23 @@ export default function PanelBodegaUnificadoPage() {
     finally { setUpdatingId(null); }
   };
 
-  const handleDelete = async (id: number, folio: number) => {
-    if (!confirm(`¿Eliminar permanentemente el pedido #${folio}?`)) return;
-    setIsDeleting(id);
+  // LOGICA DE BORRADO
+  const triggerDelete = (id: number, folio: number) => {
+    setPedidoToDelete({ id, folio });
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!pedidoToDelete) return;
+    setIsDeleting(true);
     try {
-      await solicitudesService.delete(id);
+      await solicitudesService.delete(pedidoToDelete.id);
       toast.success("Eliminado correctamente");
       fetchSolicitudes();
+      setIsDeleteDialogOpen(false);
+      setPedidoToDelete(null);
     } catch { toast.error("Error al eliminar"); }
-    finally { setIsDeleting(null); }
+    finally { setIsDeleting(false); }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-8 w-8 animate-spin text-[#D32F2F]" /></div>;
@@ -207,10 +221,9 @@ export default function PanelBodegaUnificadoPage() {
                           variant="ghost" 
                           size="icon" 
                           className="text-slate-300 hover:text-red-600 transition-colors"
-                          disabled={isDeleting === solicitud.id}
-                          onClick={() => handleDelete(solicitud.id, solicitud.folio)}
+                          onClick={() => triggerDelete(solicitud.id, solicitud.folio)}
                         >
-                          {isDeleting === solicitud.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </td>
                     </tr>
@@ -221,6 +234,38 @@ export default function PanelBodegaUnificadoPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* MODAL PERSONALIZADO PARA CONFIRMAR BORRADO */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[450px] border-t-8 border-t-red-600 p-8">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+              <AlertTriangle className="h-7 w-7 text-red-600" /> Confirmar Eliminación
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-slate-600 text-base leading-relaxed">
+              ¿Estás seguro de que deseas eliminar permanentemente el pedido <span className="font-bold">#{pedidoToDelete?.folio}</span>?
+              <br /><br />
+              <span className="font-bold text-red-600">Esta acción no se puede deshacer</span> y se perderá todo el historial vinculado.
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
+            <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)} className="font-bold h-11 px-6">
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDelete} 
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 font-bold gap-2 h-11 px-6 shadow-lg shadow-red-100"
+            >
+              {isDeleting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5" />}
+              Sí, Eliminar Pedido
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
