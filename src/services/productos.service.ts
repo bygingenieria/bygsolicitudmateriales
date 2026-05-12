@@ -1,5 +1,5 @@
-import { api } from "@/lib/axios";
-import { Producto } from "@/types/productos";
+import {api} from "@/lib/axios";
+import { Producto, CreateUpdateProductoDto } from "@/types/productos";
 
 export const productosService = {
   getAll: async (): Promise<Producto[]> => {
@@ -7,16 +7,17 @@ export const productosService = {
     return res.data;
   },
 
-  create: async (data: Partial<Producto>): Promise<Producto> => {
+  create: async (data: CreateUpdateProductoDto): Promise<Producto> => {
     const res = await api.post<Producto>("/productos", data);
     return res.data;
   },
 
-  update: async (id: number, data: Partial<Producto>): Promise<void> => {
+  update: async (id: number, data: CreateUpdateProductoDto): Promise<void> => {
     await api.put(`/productos/${id}`, data);
   },
 
   updateStock: async (id: number, cantidad: number): Promise<void> => {
+    // El backend espera un int directamente en el body
     await api.patch(`/productos/${id}/stock`, cantidad, {
       headers: { "Content-Type": "application/json" },
     });

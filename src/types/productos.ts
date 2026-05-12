@@ -16,15 +16,17 @@ export interface Producto {
   activo: boolean;
   bodegaId: number;
   bodega?: Bodega;
+  creadoEn?: string;
 }
 
 export interface CreateUpdateProductoDto {
   codigoProducto: string;
   nombreProducto: string;
-  ubicacion?: string;
-  tallaMedida?: string;
-  formato?: string;
+  ubicacion: string;
+  tallaMedida: string;
+  formato: string;
   cantidad: number;
-  observacion?: string;
+  observacion: string;
   bodegaId: number;
+  activo: boolean;
 }
