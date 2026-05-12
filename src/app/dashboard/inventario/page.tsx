@@ -9,7 +9,7 @@ import { productosService } from "@/services/productos.service";
 import { useAuthStore } from "@/stores/auth.store";
 import { 
   Plus, Edit, Trash2, Save, Package, Search, Loader2, ArrowLeft, 
-  ChevronRight, LogOut, User, MapPin, Mail, ShoppingBag 
+  ChevronRight, LogOut, User, MapPin, Mail, ShoppingBag, ShieldCheck, Truck
 } from "lucide-react";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -92,37 +92,72 @@ export default function InventarioPage() {
     if (!prod) return;
     const nuevaCantidad = Math.max(0, prod.cantidad + delta);
     try {
+      // Optimistic update para UI
       setProductos(productos.map(p => p.id === id ? { ...p, cantidad: nuevaCantidad } : p));
       await productosService.updateStock(id, nuevaCantidad);
-    } catch { toast.error("Error de sincronización"); fetchProductos(); }
+    } catch { 
+      toast.error("Error al sincronizar con el servidor"); 
+      fetchProductos(); // Revertir si falla
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
   };
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
+      {/* HEADER INSTITUCIONAL */}
       <header className="fixed top-0 w-full z-50 border-b border-slate-200 bg-white/90 backdrop-blur-md shadow-sm">
         <div className="container mx-auto px-4 h-20 flex items-center justify-between max-w-6xl">
           <Link href="/" className="flex items-center gap-3">
             <Image src="https://res.cloudinary.com/dsljo0xlb/image/upload/v1768900061/ByG_ingeniera_logo_isltvf.png" alt="Logo" width={160} height={60} className="h-10 w-auto object-contain" />
-            <div className="flex flex-col border-l pl-3">
-              <span className="text-[10px] font-bold text-[#D32F2F] uppercase tracking-widest">Inventario Central</span>
+            <div className="flex flex-col border-l border-slate-200 pl-3">
+              <span className="text-[10px] font-bold text-[#D32F2F] uppercase tracking-widest mt-0.5">Inventario Central</span>
             </div>
           </Link>
+
           <div className="relative">
-            <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-100 transition-all border outline-none">
-              <div className="h-9 w-9 rounded-full bg-[#D32F2F] text-white flex items-center justify-center font-bold text-sm">
-                {user?.nombres?.charAt(0).toUpperCase()}
+            <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="flex items-center gap-2 p-1.5 pr-3 rounded-full hover:bg-slate-100 transition-all border border-transparent hover:border-slate-200 outline-none">
+              <div className="h-9 w-9 rounded-full bg-[#D32F2F] text-white flex items-center justify-center shadow-md">
+                <span className="font-bold text-sm">{user?.nombres?.charAt(0).toUpperCase() || <User className="w-5 h-5" />}</span>
               </div>
-              <ChevronRight className={`w-4 h-4 transition-transform ${isUserMenuOpen ? "rotate-90" : ""}`} />
+              <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isUserMenuOpen ? "rotate-90" : ""}`} />
             </button>
+
+            {/* MENÚ DE USUARIO (Idéntico a Nueva Solicitud) */}
             {isUserMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-2xl border z-50 overflow-hidden">
-                <div className="px-4 py-4 bg-slate-50 border-b"><p className="text-sm font-bold">{user?.nombres} {user?.apellidos}</p></div>
-                <div className="p-2">
-                  <button onClick={() => { logout(); router.push("/login"); }} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                    <LogOut className="w-4 h-4" /> Cerrar Sesión
-                  </button>
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsUserMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                  <div className="px-4 py-4 bg-slate-50 border-b border-slate-100">
+                    <p className="text-sm font-bold text-slate-900 truncate">{user?.nombres} {user?.apellidos}</p>
+                    <p className="text-xs text-[#D32F2F] font-semibold uppercase tracking-wider mt-0.5">{user?.rol}</p>
+                  </div>
+                  <div className="p-2 space-y-1">
+                    {user?.rol === "Administrador" && (
+                      <Link href="/dashboard/admin" className="flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-[#D32F2F] bg-red-50 hover:bg-red-100 rounded-lg transition-colors mb-1">
+                        <ShieldCheck className="w-4 h-4" /> Panel Admin
+                      </Link>
+                    )}
+                    {user?.rol === "Bodeguero" && (
+                      <Link href="/dashboard/bodeguero" className="flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-[#D32F2F] bg-red-50 hover:bg-red-100 rounded-lg transition-colors mb-1">
+                        <Truck className="w-4 h-4" /> Portal Bodega
+                      </Link>
+                    )}
+                    <Link href="/dashboard/solicitante" className="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
+                      <ShoppingBag className="w-4 h-4" /> Mis Pedidos
+                    </Link>
+                  </div>
+                  <div className="h-px bg-slate-100 mx-2 my-1" />
+                  <div className="p-2">
+                    <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors text-left">
+                      <LogOut className="w-4 h-4" /> Cerrar Sesión
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -131,7 +166,7 @@ export default function InventarioPage() {
       <main className="flex-grow pt-32 pb-20 px-4 max-w-6xl mx-auto w-full">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={() => router.back()} className="h-10 w-10 rounded-full border-slate-300 hover:border-[#D32F2F] hover:text-[#D32F2F]">
+            <Button variant="outline" size="icon" onClick={() => router.back()} className="h-10 w-10 rounded-full border-slate-300 hover:border-[#D32F2F] hover:text-[#D32F2F] transition-all">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
@@ -194,6 +229,7 @@ export default function InventarioPage() {
         </Card>
       </main>
 
+      {/* FOOTER INSTITUCIONAL */}
       <footer className="bg-[#222222] text-[#CCCCCC] mt-auto">
         <div className="container mx-auto px-4 py-12 max-w-6xl">
           <div className="flex flex-col md:flex-row justify-between items-center md:items-start gap-10">
@@ -204,7 +240,7 @@ export default function InventarioPage() {
             <div className="flex gap-10 text-sm">
               <div className="space-y-2">
                 <h4 className="text-white font-bold border-b border-[#D32F2F] pb-1 uppercase text-xs tracking-widest">Navegación</h4>
-                <Link href="/dashboard/bodeguero" className="block hover:text-white transition-colors">Volver al Panel</Link>
+                <Link href="/dashboard/bodeguero" className="block hover:text-white transition-colors">Volver al Panel Bodega</Link>
               </div>
             </div>
           </div>
@@ -212,6 +248,7 @@ export default function InventarioPage() {
         <div className="py-4 text-center text-[10px] text-gray-700 bg-[#1a1a1a] border-t border-[#333333]">© {new Date().getFullYear()} ByG Ingeniería. Portal de Inventario.</div>
       </footer>
 
+      {/* MODAL DE EDICIÓN */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[550px] border-t-8 border-t-[#D32F2F] p-8">
           <DialogHeader><DialogTitle className="text-2xl font-black text-slate-900 tracking-tight">{editingProduct ? "Editar Especificaciones" : "Registrar Nuevo Material"}</DialogTitle></DialogHeader>
