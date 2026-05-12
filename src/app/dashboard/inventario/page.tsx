@@ -83,7 +83,7 @@ export default function InventarioPage() {
       toast.success(editingProduct ? "Material actualizado" : "Material registrado");
       setIsDialogOpen(false);
       fetchProductos();
-    } catch { toast.error("Error al procesar la solicitud"); }
+    } catch { toast.error("Revisa los datos e intenta nuevamente."); }
     finally { setGuardando(false); }
   };
 
@@ -92,12 +92,11 @@ export default function InventarioPage() {
     if (!prod) return;
     const nuevaCantidad = Math.max(0, prod.cantidad + delta);
     try {
-      // Optimistic update para UI
       setProductos(productos.map(p => p.id === id ? { ...p, cantidad: nuevaCantidad } : p));
       await productosService.updateStock(id, nuevaCantidad);
     } catch { 
       toast.error("Error al sincronizar con el servidor"); 
-      fetchProductos(); // Revertir si falla
+      fetchProductos(); 
     }
   };
 
@@ -108,7 +107,7 @@ export default function InventarioPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
-      {/* HEADER INSTITUCIONAL */}
+      {/* HEADER */}
       <header className="fixed top-0 w-full z-50 border-b border-slate-200 bg-white/90 backdrop-blur-md shadow-sm">
         <div className="container mx-auto px-4 h-20 flex items-center justify-between max-w-6xl">
           <Link href="/" className="flex items-center gap-3">
@@ -126,7 +125,6 @@ export default function InventarioPage() {
               <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isUserMenuOpen ? "rotate-90" : ""}`} />
             </button>
 
-            {/* MENÚ DE USUARIO (Idéntico a Nueva Solicitud) */}
             {isUserMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsUserMenuOpen(false)} />
@@ -195,9 +193,8 @@ export default function InventarioPage() {
                 <TableHeader className="bg-slate-50/80">
                   <TableRow>
                     <TableHead className="pl-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Código</TableHead>
-                    <TableHead className="uppercase text-[10px] font-bold tracking-wider text-slate-500">Descripción</TableHead>
-                    <TableHead className="text-center uppercase text-[10px] font-bold tracking-wider text-slate-500">Stock Físico</TableHead>
-                    <TableHead className="uppercase text-[10px] font-bold tracking-wider text-slate-500">Detalles</TableHead>
+                    <TableHead className="uppercase text-[10px] font-bold tracking-wider text-slate-500">Material</TableHead>
+                    <TableHead className="text-center uppercase text-[10px] font-bold tracking-wider text-slate-500 w-48">Stock en Bodega</TableHead>
                     <TableHead className="text-right pr-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -205,23 +202,40 @@ export default function InventarioPage() {
                   {productosFiltrados.map((p) => (
                     <TableRow key={p.id} className="hover:bg-slate-50/50 transition-colors border-b-slate-100">
                       <TableCell className="pl-8 font-mono text-xs font-bold text-slate-400">{p.codigoProducto}</TableCell>
-                      <TableCell className="font-extrabold text-slate-800 text-base">{p.nombreProducto}</TableCell>
+                      
+                      {/* COLUMNA MATERIAL + UBICACIÓN */}
                       <TableCell>
-                        <div className="flex items-center justify-center gap-4">
-                          <Button size="icon" variant="outline" className="h-8 w-8 text-[#D32F2F] border-red-100 hover:bg-red-50" onClick={() => updateStockQuickly(p.id, -1)}>-</Button>
-                          <span className={`text-xl font-black w-12 text-center ${p.cantidad < 5 ? "text-red-600" : "text-green-700"}`}>{p.cantidad}</span>
-                          <Button size="icon" variant="outline" className="h-8 w-8 text-green-600 border-green-100 hover:bg-green-50" onClick={() => updateStockQuickly(p.id, 1)}>+</Button>
+                        <p className="font-extrabold text-slate-800 text-base">{p.nombreProducto}</p>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">
+                          {p.ubicacion ? `Ubicación: ${p.ubicacion}` : "Sin ubicación asignada"}
+                        </p>
+                      </TableCell>
+
+                      {/* COLUMNA STOCK + FORMATO */}
+                      <TableCell>
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="flex items-center justify-center gap-4">
+                            <Button size="icon" variant="outline" className="h-8 w-8 text-[#D32F2F] border-red-100 hover:bg-red-50" onClick={() => updateStockQuickly(p.id, -1)}>-</Button>
+                            <span className={`text-xl font-black w-12 text-center ${p.cantidad < 5 ? "text-red-600" : "text-green-700"}`}>{p.cantidad}</span>
+                            <Button size="icon" variant="outline" className="h-8 w-8 text-green-600 border-green-100 hover:bg-green-50" onClick={() => updateStockQuickly(p.id, 1)}>+</Button>
+                          </div>
+                          {p.formato && <span className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">{p.formato}</span>}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col"><span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase w-fit mb-1">{p.formato || "Unidad"}</span><span className="text-xs text-slate-500 font-medium italic">{p.ubicacion || "Sin ubicación fija"}</span></div>
-                      </TableCell>
+
                       <TableCell className="text-right pr-8 space-x-1">
                         <Button size="icon" variant="ghost" className="text-slate-400 hover:text-[#D32F2F] hover:bg-red-50 rounded-lg" onClick={() => handleOpenDialog(p)}><Edit className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" className="text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg" onClick={async () => { if(confirm("¿Eliminar este material?")) { await productosService.delete(p.id); fetchProductos(); } }}><Trash2 className="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost" className="text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg" onClick={async () => { if(confirm("¿Eliminar este material del catálogo?")) { await productosService.delete(p.id); fetchProductos(); } }}><Trash2 className="h-4 w-4" /></Button>
                       </TableCell>
                     </TableRow>
                   ))}
+                  {productosFiltrados.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-32 text-center text-slate-500">
+                        No se encontraron materiales con ese criterio.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             )}
@@ -229,19 +243,12 @@ export default function InventarioPage() {
         </Card>
       </main>
 
-      {/* FOOTER INSTITUCIONAL */}
       <footer className="bg-[#222222] text-[#CCCCCC] mt-auto">
         <div className="container mx-auto px-4 py-12 max-w-6xl">
           <div className="flex flex-col md:flex-row justify-between items-center md:items-start gap-10">
             <div className="space-y-4 text-center md:text-left">
               <Image src="https://res.cloudinary.com/dsljo0xlb/image/upload/v1768940307/LOGO-BYG_BLANCO-PNG_zdbhuy.png" alt="Logo" width={160} height={60} className="mx-auto md:mx-0 h-16 w-auto object-contain" />
               <p className="text-xs text-gray-500 max-w-xs">Módulo de gestión de materiales para el personal de ByG Ingeniería.</p>
-            </div>
-            <div className="flex gap-10 text-sm">
-              <div className="space-y-2">
-                <h4 className="text-white font-bold border-b border-[#D32F2F] pb-1 uppercase text-xs tracking-widest">Navegación</h4>
-                <Link href="/dashboard/bodeguero" className="block hover:text-white transition-colors">Volver al Panel Bodega</Link>
-              </div>
             </div>
           </div>
         </div>
