@@ -61,7 +61,6 @@ export default function InventarioPage() {
     fetchProductos(); 
   }, []);
 
-  // Efecto combinado para Búsqueda y reset de Paginación
   useEffect(() => {
     const lower = searchTerm.toLowerCase();
     const filtrados = productos.filter(p => 
@@ -72,12 +71,10 @@ export default function InventarioPage() {
     setCurrentPage(1); 
   }, [searchTerm, productos]);
 
-  // Cálculos de paginación
   const totalPages = Math.ceil(productosFiltrados.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedProductos = productosFiltrados.slice(startIndex, startIndex + itemsPerPage);
 
-  // --- LÓGICA DE AUTOGENERACIÓN DE CÓDIGO (VERSIÓN MEJORADA) ---
   const generateNextCode = (productosList: Producto[]): string => {
     if (productosList.length === 0) return "ARTOF-001";
     
@@ -85,23 +82,20 @@ export default function InventarioPage() {
     let bestPrefix = "ARTOF-";
     let paddingLength = 3;
 
-    // Escaneamos TODOS los productos para encontrar el número absoluto más alto
     productosList.forEach(p => {
       const match = p.codigoProducto.trim().match(/^(.+?)(\d+)$/);
       if (match) {
         const currentNum = parseInt(match[2], 10);
         if (currentNum > maxNumber) {
           maxNumber = currentNum;
-          bestPrefix = match[1]; // Guardamos el prefijo (ej: "ARTOF-" o "artof ")
-          paddingLength = match[2].length; // Guardamos cuántos ceros tenía (ej: 4 para "0003")
+          bestPrefix = match[1]; 
+          paddingLength = match[2].length; 
         }
       }
     });
 
-    // Si nadie tenía números, empezamos desde el 1
     if (maxNumber === 0) return "ARTOF-001";
 
-    // Le sumamos 1 al NÚMERO MÁS ALTO de todo el catálogo
     const nextNumber = maxNumber + 1;
     const paddedNumber = nextNumber.toString().padStart(paddingLength, "0");
 
@@ -121,7 +115,7 @@ export default function InventarioPage() {
       setEditingProduct(null);
       setFormData({
         nombreProducto: "", 
-        codigoProducto: generateNextCode(productos), // ¡AQUÍ SE AUTOGENERA EL CÓDIGO!
+        codigoProducto: generateNextCode(productos),
         cantidad: 0, formato: "",
         tallaMedida: "", ubicacion: "", observacion: "", bodegaId: 1, activo: true
       });
@@ -145,7 +139,20 @@ export default function InventarioPage() {
     }
   };
 
-  // Lógica de Stock Interactiva
+  // --- NUEVA FUNCIÓN PARA BORRAR ---
+  const handleDelete = async (id: number) => {
+    const confirmar = window.confirm("¿Estás seguro de querer borrar este material del catálogo? Esta acción no se puede deshacer.");
+    if (!confirmar) return;
+
+    try {
+      await productosService.delete(id);
+      toast.success("Material eliminado correctamente");
+      fetchProductos();
+    } catch (error) {
+      toast.error("Error al eliminar. Verifica si tienes permisos en el servidor.");
+    }
+  };
+
   const handleLocalStockChange = (id: number, newCantidad: number) => {
     const validCantidad = Math.max(0, newCantidad || 0);
     setProductos(prev => prev.map(p => p.id === id ? { ...p, cantidad: validCantidad } : p));
@@ -168,7 +175,6 @@ export default function InventarioPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
-      {/* HEADER INSTITUCIONAL */}
       <header className="fixed top-0 w-full z-50 border-b border-slate-200 bg-white/90 backdrop-blur-md shadow-sm">
         <div className="container mx-auto px-4 h-20 flex items-center justify-between max-w-6xl">
           <Link href="/" className="flex items-center gap-3">
@@ -257,6 +263,7 @@ export default function InventarioPage() {
                       <TableHead className="pl-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Código</TableHead>
                       <TableHead className="uppercase text-[10px] font-bold tracking-wider text-slate-500">Material</TableHead>
                       <TableHead className="text-center uppercase text-[10px] font-bold tracking-wider text-slate-500 w-56">Stock Físico</TableHead>
+                      <TableHead className="uppercase text-[10px] font-bold tracking-wider text-slate-500">Ubicación</TableHead>
                       <TableHead className="text-right pr-8 uppercase text-[10px] font-bold tracking-wider text-slate-500">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -267,12 +274,8 @@ export default function InventarioPage() {
                         
                         <TableCell>
                           <p className="font-extrabold text-slate-800 text-base">{p.nombreProducto}</p>
-                          <p className="text-xs text-slate-500 font-medium mt-0.5">
-                            {p.ubicacion ? `Ubicación: ${p.ubicacion}` : "Sin ubicación asignada"}
-                          </p>
                         </TableCell>
 
-                        {/* COLUMNA STOCK INTERACTIVA */}
                         <TableCell>
                           <div className="flex flex-col items-center justify-center">
                             <div className="flex items-center justify-center gap-3">
@@ -322,15 +325,22 @@ export default function InventarioPage() {
                           </div>
                         </TableCell>
 
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase w-fit mb-1">{p.formato || "Unidad"}</span>
+                            <span className="text-xs text-slate-500 font-medium italic">{p.ubicacion || "Sin ubicación fija"}</span>
+                          </div>
+                        </TableCell>
+
                         <TableCell className="text-right pr-8 space-x-1">
                           <Button size="icon" variant="ghost" className="text-slate-400 hover:text-[#D32F2F] hover:bg-red-50 rounded-lg" onClick={() => handleOpenDialog(p)}><Edit className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" className="text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg" onClick={async () => { if(confirm("¿Eliminar este material del catálogo?")) { await productosService.delete(p.id); fetchProductos(); } }}><Trash2 className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" className="text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg" onClick={() => handleDelete(p.id)}><Trash2 className="h-4 w-4" /></Button>
                         </TableCell>
                       </TableRow>
                     ))}
                     {productosFiltrados.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} className="h-32 text-center text-slate-500">
+                        <TableCell colSpan={5} className="h-32 text-center text-slate-500">
                           No se encontraron materiales con ese criterio.
                         </TableCell>
                       </TableRow>
