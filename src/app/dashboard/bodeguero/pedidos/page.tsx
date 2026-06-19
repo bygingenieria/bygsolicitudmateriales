@@ -17,7 +17,7 @@ import {
   AlertCircle,
   ShoppingCart,
   Trash2,
-  AlertTriangle // ✅ Importado para el modal
+  AlertTriangle //  Importado para el modal
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,7 @@ import { solicitudesService } from "@/services/solicitudes.service";
 import { SolicitudResumen, SolicitudDetalle } from "@/types/solicitudes";
 import { cn } from "@/lib/utils";
 
-// 🎨 MAPEO DE COLORES
+//  MAPEO DE COLORES
 const getStatusBadge = (estado: string) => {
   switch (estado) {
     case "Pendiente":
@@ -155,13 +155,13 @@ export default function PedidosBodegaPage() {
     }
   };
 
-  // ✅ NUEVA LÓGICA: ABRIR MODAL
+  //  NUEVA LÓGICA: ABRIR MODAL
   const triggerDelete = (id: number, folio: number) => {
     setPedidoToDelete({ id, folio });
     setIsDeleteDialogOpen(true);
   };
 
-  // ✅ NUEVA LÓGICA: EJECUTAR BORRADO DESDE MODAL
+  //  NUEVA LÓGICA: EJECUTAR BORRADO DESDE MODAL
   const confirmDelete = async () => {
     if (!pedidoToDelete) return;
     
@@ -316,7 +316,7 @@ export default function PedidosBodegaPage() {
                           )}
                         </div>
                       </td>
-                      {/* ✅ CELDA DE ELIMINACIÓN CON TRIGGER DEL MODAL */}
+                      {/*  CELDA DE ELIMINACIÓN CON TRIGGER DEL MODAL */}
                       <td className="px-6 py-4 text-center">
                         <Button 
                           variant="ghost" 
@@ -336,7 +336,7 @@ export default function PedidosBodegaPage() {
         </Card>
       </div>
 
-      {/* ✅ MODAL PERSONALIZADO PARA CONFIRMAR BORRADO */}
+      {/*  MODAL PERSONALIZADO PARA CONFIRMAR BORRADO */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[450px] border-t-8 border-t-red-600 p-8">
           <DialogHeader>

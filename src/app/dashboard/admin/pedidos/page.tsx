@@ -25,7 +25,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-
 import { solicitudesService } from "@/services/solicitudes.service";
 import { SolicitudResumen, SolicitudDetalle } from "@/types/solicitudes";
 
@@ -52,7 +51,17 @@ const getStatusIcon = (estado: string) => {
   }
 };
 
-export default function PanelBodegaUnificadoPage() {
+const formatStatusName = (estado: string) => {
+  switch (estado) {
+    case "EnRevision": return "En Revisión";
+    case "AprobadaBodega": return "Aprobada (Bodega)";
+    case "RequiereCompra": return "Requiere Compra";
+    case "Finalizada": return "Entregada / Finalizada";
+    default: return estado;
+  }
+};
+
+export default function PedidosBodegaPage() {
   const router = useRouter();
   const [solicitudes, setSolicitudes] = useState<SolicitudResumen[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,29 +78,40 @@ export default function PanelBodegaUnificadoPage() {
       const data = await solicitudesService.getAllBodega();
       setSolicitudes(data);
     } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.status === 401) router.push("/login");
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        router.push("/login");
+      }
       toast.error("Error al cargar pedidos");
-    } finally { setLoading(false); }
+    } finally { 
+      setLoading(false); 
+    }
   };
 
-  useEffect(() => { fetchSolicitudes(); }, []);
+  useEffect(() => { 
+    fetchSolicitudes(); 
+  }, []);
 
   const handleOpenDetail = async (id: number) => {
     setSelectedSolicitud(null);
     try {
       const detail = await solicitudesService.getById(id);
       setSelectedSolicitud(detail);
-    } catch { toast.error("Error al cargar detalle"); }
+    } catch { 
+      toast.error("Error al cargar detalle"); 
+    }
   };
 
   const handleStatusChange = async (id: number, nuevoEstado: string) => {
     setUpdatingId(id);
     try {
       await solicitudesService.updateEstado(id, nuevoEstado);
-      toast.success("Estado actualizado");
+      toast.success("Estado actualizado exitosamente");
       fetchSolicitudes();
-    } catch { toast.error("Error al actualizar"); }
-    finally { setUpdatingId(null); }
+    } catch { 
+      toast.error("Error al actualizar el estado"); 
+    } finally { 
+      setUpdatingId(null); 
+    }
   };
 
   // LOGICA DE BORRADO
@@ -105,15 +125,24 @@ export default function PanelBodegaUnificadoPage() {
     setIsDeleting(true);
     try {
       await solicitudesService.delete(pedidoToDelete.id);
-      toast.success("Eliminado correctamente");
+      toast.success(`Pedido #${pedidoToDelete.folio} eliminado correctamente`);
       fetchSolicitudes();
       setIsDeleteDialogOpen(false);
       setPedidoToDelete(null);
-    } catch { toast.error("Error al eliminar"); }
-    finally { setIsDeleting(false); }
+    } catch { 
+      toast.error("Error al eliminar"); 
+    } finally { 
+      setIsDeleting(false); 
+    }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-8 w-8 animate-spin text-[#D32F2F]" /></div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="h-8 w-8 animate-spin text-[#D32F2F]" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 pt-24 font-sans">
@@ -125,7 +154,9 @@ export default function PanelBodegaUnificadoPage() {
             </h1>
             <p className="text-slate-500 mt-1">Panel centralizado de pedidos normales y especiales.</p>
           </div>
-          <Button variant="outline" onClick={() => router.push("/")} className="gap-2"><ArrowLeft className="w-4 h-4" /> Volver al Inicio</Button>
+          <Button variant="outline" onClick={() => router.push("/dashboard/bodeguero")} className="gap-2">
+            <ArrowLeft className="w-4 h-4" /> Volver al Inicio
+          </Button>
         </div>
 
         <Card className="border-t-4 border-t-[#D32F2F] shadow-lg">
@@ -177,12 +208,19 @@ export default function PanelBodegaUnificadoPage() {
                                 <div className="border rounded-md overflow-hidden mt-4">
                                   <table className="w-full text-sm">
                                     <thead className="bg-slate-100">
-                                      <tr><th className="px-3 py-2 text-left">Material</th><th className="px-3 py-2 text-center">Cant.</th><th className="px-3 py-2 text-center">Código</th></tr>
+                                      <tr>
+                                        <th className="px-3 py-2 text-left">Material</th>
+                                        <th className="px-3 py-2 text-center">Cant.</th>
+                                        <th className="px-3 py-2 text-center">Código</th>
+                                      </tr>
                                     </thead>
                                     <tbody className="divide-y">
                                       {selectedSolicitud.items.map((item) => (
                                         <tr key={item.id}>
-                                          <td className="px-3 py-2 font-medium">{item.nombreMaterial}</td>
+                                          <td className="px-3 py-2 font-medium">
+                                            {item.nombreMaterial}
+                                            {item.esManual && <span className="text-xs text-orange-600 flex items-center gap-1 mt-1 font-normal"><AlertCircle className="w-3 h-3" /> Item manual</span>}
+                                          </td>
                                           <td className="px-3 py-2 text-center font-bold">{item.cantidadSolicitada}</td>
                                           <td className="px-3 py-2 text-center text-xs font-mono">{item.codigo}</td>
                                         </tr>
@@ -196,31 +234,31 @@ export default function PanelBodegaUnificadoPage() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <Badge className={`${getStatusBadge(solicitud.estado)} text-white border-0`}>
-                          {getStatusIcon(solicitud.estado)} {solicitud.estado}
+                          {getStatusIcon(solicitud.estado)} {formatStatusName(solicitud.estado)}
                         </Badge>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex justify-center">
-                          {updatingId === solicitud.id ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-                            <Select value={solicitud.estado} onValueChange={(val) => handleStatusChange(solicitud.id, val)}>
-                              <SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                          {updatingId === solicitud.id ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : (
+                            <Select value={solicitud.estado} disabled={solicitud.estado === "Finalizada" || solicitud.estado === "Rechazada"} onValueChange={(val) => handleStatusChange(solicitud.id, val)}>
+                              <SelectTrigger className="w-[170px] h-8 text-xs"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="Pendiente">Pendiente</SelectItem>
                                 <SelectItem value="EnRevision">En Revisión</SelectItem>
-                                <SelectItem value="AprobadaBodega">Aprobada</SelectItem>
-                                <SelectItem value="RequiereCompra">Requiere Compra</SelectItem>
+                                <SelectItem value="AprobadaBodega">Aprobada (Lista)</SelectItem>
+                                <SelectItem value="RequiereCompra">Sin Stock (A Compra)</SelectItem>
                                 <SelectItem value="Finalizada">Finalizada</SelectItem>
-                                <SelectItem value="Rechazada">Rechazar</SelectItem>
+                                <SelectItem value="Rechazada" className="text-red-600 font-bold">Rechazar</SelectItem>
                               </SelectContent>
                             </Select>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="text-slate-300 hover:text-red-600 transition-colors"
+                        <Button
+                           variant="ghost"
+                           size="icon"
+                           className="text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors rounded-lg"
                           onClick={() => triggerDelete(solicitud.id, solicitud.folio)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -237,7 +275,7 @@ export default function PanelBodegaUnificadoPage() {
 
       {/* MODAL PERSONALIZADO PARA CONFIRMAR BORRADO */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[450px] border-t-8 border-t-red-600 p-8">
+        <DialogContent className="sm:max-w-[450px] border-t-8 border-t-red-600 p-8 bg-white">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
               <AlertTriangle className="h-7 w-7 text-red-600" /> Confirmar Eliminación
@@ -245,7 +283,7 @@ export default function PanelBodegaUnificadoPage() {
           </DialogHeader>
           <div className="py-4">
             <p className="text-slate-600 text-base leading-relaxed">
-              ¿Estás seguro de que deseas eliminar permanentemente el pedido <span className="font-bold">#{pedidoToDelete?.folio}</span>?
+              ¿Estás seguro de que deseas eliminar permanentemente el pedido <span className="font-bold text-slate-900">#{pedidoToDelete?.folio}</span>?
               <br /><br />
               <span className="font-bold text-red-600">Esta acción no se puede deshacer</span> y se perderá todo el historial vinculado.
             </p>
@@ -254,10 +292,10 @@ export default function PanelBodegaUnificadoPage() {
             <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)} className="font-bold h-11 px-6">
               Cancelar
             </Button>
-            <Button 
-              variant="destructive" 
-              onClick={confirmDelete} 
-              disabled={isDeleting}
+            <Button
+               variant="destructive"
+               onClick={confirmDelete}
+               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700 font-bold gap-2 h-11 px-6 shadow-lg shadow-red-100"
             >
               {isDeleting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5" />}
